@@ -32,14 +32,7 @@ capture/
 venv/
 env/
 
-# 忽略配置文件（如果包含敏感信息）
-config/*.json
 
-# 忽略模型文件（如果太大）
-# models/*.pth
-
-# 忽略依赖文件
-requirements.txt
 
 # 忽略Windows系统文件
 Thumbs.db
