@@ -1,0 +1,54 @@
+# 忽略Python编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 忽略日志文件
+*.log
+logs/
+
+# 忽略数据库文件
+*.db
+*.sqlite3
+
+# 忽略临时文件
+temp/
+*.tmp
+*.temp
+
+# 忽略截图和捕获的图片
+screenshots/
+capture/
+
+# 忽略IDE文件
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 忽略环境文件
+.env
+venv/
+env/
+
+# 忽略配置文件（如果包含敏感信息）
+config/*.json
+
+# 忽略模型文件（如果太大）
+# models/*.pth
+
+# 忽略依赖文件
+requirements.txt
+
+# 忽略Windows系统文件
+Thumbs.db
+ehthumbs.db
+
+# 忽略Mac系统文件
+.DS_Store
+
+# 忽略编译的二进制文件
+build/
+dist/
+*.egg-info/

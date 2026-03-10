@@ -1,0 +1,13 @@
+{
+    "CAMERA_INDEX": 2,
+    "CAMERA_WIDTH": 640,
+    "CAMERA_HEIGHT": 480,
+    "FRAME_RATE": 20,
+    "SHOW_BOX": true,
+    "SHOW_LABEL": true,
+    "ENABLE_DETECTION": true,
+    "APP_WIDTH": 1280,
+    "APP_HEIGHT": 720,
+    "ICON_PATH": "icons/logo.png",
+    "USE_CUDA": true
+}
