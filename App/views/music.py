@@ -119,7 +119,7 @@ class MusicPage(QWidget):
                 QPushButton {
                     background: #334155;
                     color: #e2e8f0;
-                    padding: 6px 12px;
+                    padding: 5px 5px;
                     border-radius: 6px;
                     border: none;
                 }

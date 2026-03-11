@@ -45,3 +45,6 @@ ehthumbs.db
 build/
 dist/
 *.egg-info/
+
+# 忽略启动脚本
+star.bat

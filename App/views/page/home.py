@@ -2,7 +2,7 @@
 主界面 - 面部表情检测系统
 """
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-                             QStackedWidget, QPushButton, QLabel, QFrame)
+                             QStackedWidget, QPushButton, QLabel, QFrame, QSlider)
 from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QKeyEvent, QIcon, QPixmap
@@ -100,6 +100,7 @@ class HomeWindow(QMainWindow):
     
     def create_left_panel(self):
         """创建左侧导航栏"""
+        global QIcon, QSize, QPixmap
         panel = QFrame()
         panel.setStyleSheet("""
             QFrame {
@@ -208,46 +209,57 @@ class HomeWindow(QMainWindow):
         music_frame = QFrame()
         music_frame.setStyleSheet("""
             QFrame {
-                background: #1e293b;
-                border-radius: 12px;
-                border: 2px solid #334155;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1e293b, stop:1 #334155);
+                border-radius: 16px;
+                border: 1px solid rgba(45, 212, 191, 0.3);
                 padding: 10px;
             }
         """)
         music_layout = QVBoxLayout()
         music_layout.setContentsMargins(0, 0, 0, 0)
-        music_layout.setSpacing(8)
+        music_layout.setSpacing(12)
         
         # 音乐播放器标题
         music_title = QLabel("🎵 音乐播放")
-        music_title.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        music_title.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
         music_title.setStyleSheet("color: #2dd4bf;")
         music_layout.addWidget(music_title)
         
         # 音乐名称
         self.music_name_label = QLabel("未播放")
-        self.music_name_label.setFont(QFont("Microsoft YaHei", 10))
+        self.music_name_label.setFont(QFont("Microsoft YaHei", 11))
         self.music_name_label.setStyleSheet("color: #e2e8f0;")
         self.music_name_label.setWordWrap(True)
+        self.music_name_label.setMinimumHeight(40)
         music_layout.addWidget(self.music_name_label)
         
         # 音乐控制按钮
         control_layout = QHBoxLayout()
-        control_layout.setSpacing(4)
+        control_layout.setSpacing(8)
+        control_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         # 上一曲按钮
-        self.prev_btn = QPushButton("上一曲")
-        self.prev_btn.setFont(QFont("Microsoft YaHei", 8))
+        from PyQt6.QtGui import QIcon
+        
+        # 使用 APP_DIR 来构建图标路径
+        self.prev_btn = QPushButton()
+        prev_icon_path = os.path.join(APP_DIR, 'icons', '上一个.png')
+        if os.path.exists(prev_icon_path):
+            self.prev_btn.setIcon(QIcon(prev_icon_path))
+        else:
+            self.prev_btn.setIcon(QIcon.fromTheme("media-skip-backward"))
+        self.prev_btn.setIconSize(QSize(30, 30))
+        self.prev_btn.setFixedSize(55, 55)
         self.prev_btn.setStyleSheet("""
             QPushButton {
-                background: #334155;
+                background: rgba(51, 65, 85, 0.8);
                 color: #e2e8f0;
-                padding: 4px;
-                border-radius: 4px;
-                border: none;
+                border-radius: 8px;
+                border: 1px solid rgba(45, 212, 191, 0.2);
             }
             QPushButton:hover {
-                background: #475569;
+                background: rgba(71, 85, 105, 0.9);
+                border-color: rgba(45, 212, 191, 0.5);
             }
         """)
         self.prev_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -255,19 +267,23 @@ class HomeWindow(QMainWindow):
         control_layout.addWidget(self.prev_btn)
         
         # 播放/暂停按钮
-        self.play_pause_btn = QPushButton("暂停")
-        self.play_pause_btn.setFont(QFont("Microsoft YaHei", 8))
+        self.play_pause_btn = QPushButton()
+        pause_icon_path = os.path.join(APP_DIR, 'icons', '音乐暂停.png')
+        if os.path.exists(pause_icon_path):
+            self.play_pause_btn.setIcon(QIcon(pause_icon_path))
+        else:
+            self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-pause"))
+        self.play_pause_btn.setIconSize(QSize(24, 24))
+        self.play_pause_btn.setFixedSize(55, 55)
         self.play_pause_btn.setStyleSheet("""
             QPushButton {
-                background: #2dd4bf;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2dd4bf, stop:1 #14b8a6);
                 color: #1e293b;
-                padding: 4px;
-                border-radius: 4px;
+                border-radius: 8px;
                 border: none;
-                font-weight: bold;
             }
             QPushButton:hover {
-                background: #14b8a6;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #14b8a6, stop:1 #0d9488);
             }
         """)
         self.play_pause_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -275,18 +291,24 @@ class HomeWindow(QMainWindow):
         control_layout.addWidget(self.play_pause_btn)
         
         # 下一曲按钮
-        self.next_btn = QPushButton("下一曲")
-        self.next_btn.setFont(QFont("Microsoft YaHei", 8))
+        self.next_btn = QPushButton()
+        next_icon_path = os.path.join(APP_DIR, 'icons', '下一个.png')
+        if os.path.exists(next_icon_path):
+            self.next_btn.setIcon(QIcon(next_icon_path))
+        else:
+            self.next_btn.setIcon(QIcon.fromTheme("media-skip-forward"))
+        self.next_btn.setIconSize(QSize(30, 30))
+        self.next_btn.setFixedSize(55, 55)
         self.next_btn.setStyleSheet("""
             QPushButton {
-                background: #334155;
+                background: rgba(51, 65, 85, 0.8);
                 color: #e2e8f0;
-                padding: 4px;
-                border-radius: 4px;
-                border: none;
+                border-radius: 8px;
+                border: 1px solid rgba(45, 212, 191, 0.2);
             }
             QPushButton:hover {
-                background: #475569;
+                background: rgba(71, 85, 105, 0.9);
+                border-color: rgba(45, 212, 191, 0.5);
             }
         """)
         self.next_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -295,24 +317,89 @@ class HomeWindow(QMainWindow):
         
         music_layout.addLayout(control_layout)
         
+        # 音量控制器
+        volume_layout = QHBoxLayout()
+        volume_layout.setSpacing(8)
+        volume_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        # 声音图标
+        sound_icon_label = QLabel()
+        sound_icon_path = os.path.join(APP_DIR, 'icons', '声音.png')
+        if os.path.exists(sound_icon_path):
+            sound_pixmap = QPixmap(sound_icon_path)
+            if not sound_pixmap.isNull():
+                sound_icon_label.setPixmap(sound_pixmap.scaled(25, 25, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        sound_icon_label.setFixedSize(50, 50)
+        sound_icon_label.setStyleSheet("background: transparent;border:none;")
+        volume_layout.addWidget(sound_icon_label)
+        
+        # 音量滑动条
+        self.volume_slider = QSlider(Qt.Orientation.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(100)  # 默认音量100%
+        self.volume_slider.setFixedWidth(180)
+        self.volume_slider.setStyleSheet("""
+            QSlider {
+                height: 8px;
+                background: transparent;
+            }
+            QSlider::groove:horizontal {
+                background: #334155;
+                height: 4px;
+                border-radius: 2px;
+            }
+            QSlider::handle:horizontal {
+                background: #337bf9;
+                width: 20px;
+                height: 20px;
+                border-radius: 10px;
+                margin: -8px 0;
+                border: none;
+                box-shadow: none;
+            }
+            QSlider::handle:horizontal:hover {
+                background: #337bf9;
+                width: 22px;
+                height: 22px;
+                margin: -9px 0;
+            }
+            QSlider::handle:horizontal:pressed {
+                background: #337bf9;
+                width: 24px;
+                height: 24px;
+                margin: -10px 0;
+            }
+        """)
+        self.volume_slider.valueChanged.connect(self.set_volume)
+        volume_layout.addWidget(self.volume_slider)
+        
+        music_layout.addLayout(volume_layout)
+        
         # 静音按钮
-        self.mute_btn = QPushButton("静音")
-        self.mute_btn.setFont(QFont("Microsoft YaHei", 8))
+        self.mute_btn = QPushButton()
+        self.mute_btn.setFixedSize(55, 55)
+        volume_icon_path = os.path.join(APP_DIR, 'icons', '音量.png')
+        if os.path.exists(volume_icon_path):
+            self.mute_btn.setIcon(QIcon(volume_icon_path))
+        else:
+            self.mute_btn.setText("🔊")
+        self.mute_btn.setIconSize(QSize(24, 24))
         self.mute_btn.setStyleSheet("""
             QPushButton {
-                background: #334155;
+                background: rgba(51, 65, 85, 0.8);
                 color: #e2e8f0;
-                padding: 4px;
-                border-radius: 4px;
-                border: none;
+                padding: 8px 12px;
+                border-radius: 8px;
+                border: 1px solid rgba(45, 212, 191, 0.2);
             }
             QPushButton:hover {
-                background: #475569;
+                background: rgba(71, 85, 105, 0.9);
+                border-color: rgba(45, 212, 191, 0.5);
             }
         """)
         self.mute_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.mute_btn.clicked.connect(self.toggle_mute)
-        music_layout.addWidget(self.mute_btn)
+        control_layout.addWidget(self.mute_btn)
         
         music_frame.setLayout(music_layout)
         layout.addWidget(music_frame)
@@ -376,9 +463,7 @@ class HomeWindow(QMainWindow):
         self.time_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.time_label.setStyleSheet("color: #94a3b8; background: rgba(45, 212, 191, 0.1); padding: 8px 10px; border-radius: 8px;")
         top_layout.addWidget(self.time_label)
-        
 
-        
         # 添加间距
         top_layout.addSpacing(10)
         
@@ -563,20 +648,49 @@ class HomeWindow(QMainWindow):
     
     def toggle_play_pause(self):
         """切换播放/暂停状态"""
+        from PyQt6.QtGui import QIcon
+        
         if self.is_playing:
             self.stop_music()
             self.is_playing = False
-            self.play_pause_btn.setText("播放")
+            # 尝试设置播放图标
+            play_icon_path = os.path.join(APP_DIR, 'icons', '音乐播放.png')
+            if os.path.exists(play_icon_path):
+                self.play_pause_btn.setIcon(QIcon(play_icon_path))
+            else:
+                self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-start"))
             self.music_name_label.setText("已暂停")
         else:
             # 开始播放音乐，默认使用当前情绪
             self.is_playing = True
-            self.play_pause_btn.setText("暂停")
+            # 尝试设置暂停图标
+            pause_icon_path = os.path.join(APP_DIR, 'icons', '音乐暂停.png')
+            if os.path.exists(pause_icon_path):
+                self.play_pause_btn.setIcon(QIcon(pause_icon_path))
+            else:
+                self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-pause"))
             self.check_emotion_and_play_music(manual_play=True)
     
     def check_emotion_and_play_music(self, manual_play=False):
         """每五秒检测一次情绪并更新音乐"""
         try:
+            # 检查是否启用了根据表情适配播放
+            music_page = self.pages.get('music')
+            if music_page and hasattr(music_page, 'play_checkbox'):
+                if not music_page.play_checkbox.isChecked() and not manual_play:
+                    # 复选框未勾选且不是手动播放，停止音乐
+                    if self.is_playing:
+                        self.stop_music()
+                        self.is_playing = False
+                        # 更新播放图标
+                        play_icon_path = os.path.join(APP_DIR, 'icons', '音乐播放.png')
+                        if os.path.exists(play_icon_path):
+                            self.play_pause_btn.setIcon(QIcon(play_icon_path))
+                        else:
+                            self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-start"))
+                        self.music_name_label.setText("未启用")
+                    return
+            
             # 获取当前页面
             current_index = self.content_stack.currentIndex()
             current_page = None
@@ -594,7 +708,12 @@ class HomeWindow(QMainWindow):
                 if not manual_play:
                     self.stop_music()
                     self.is_playing = False
-                    self.play_pause_btn.setText("播放")
+                    # 更新播放图标
+                    play_icon_path = os.path.join(APP_DIR, 'icons', '音乐播放.png')
+                    if os.path.exists(play_icon_path):
+                        self.play_pause_btn.setIcon(QIcon(play_icon_path))
+                    else:
+                        self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-start"))
                     self.music_name_label.setText("未检测")
                 return
             
@@ -610,11 +729,30 @@ class HomeWindow(QMainWindow):
                 # 检查视频是否正在播放
                 is_detecting = hasattr(current_page, 'cap') and current_page.cap and current_page.cap.isOpened()
             
+            # 如果停止检测，音乐也跟着停止
+            if not is_detecting and not manual_play:
+                if self.is_playing:
+                    self.stop_music()
+                    self.is_playing = False
+                    # 更新播放图标
+                    play_icon_path = os.path.join(APP_DIR, 'icons', '音乐播放.png')
+                    if os.path.exists(play_icon_path):
+                        self.play_pause_btn.setIcon(QIcon(play_icon_path))
+                    else:
+                        self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-start"))
+                    self.music_name_label.setText("已停止")
+                return
+            
             if is_detecting or manual_play:
                 # 正在检测或用户手动播放，确保音乐播放器处于播放状态
                 if not self.is_playing:
                     self.is_playing = True
-                    self.play_pause_btn.setText("暂停")
+                    # 更新暂停图标
+                    pause_icon_path = os.path.join(APP_DIR, 'icons', '音乐暂停.png')
+                    if os.path.exists(pause_icon_path):
+                        self.play_pause_btn.setIcon(QIcon(pause_icon_path))
+                    else:
+                        self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-pause"))
                 
                 # 获取当前检测到的情绪
                 if hasattr(current_page, 'face_results') and current_page.face_results:
@@ -656,10 +794,17 @@ class HomeWindow(QMainWindow):
                     # 没有检测，停止播放音乐
                     self.stop_music()
                     self.is_playing = False
-                    self.play_pause_btn.setText("播放")
+                    # 更新播放图标
+                    play_icon_path = os.path.join(APP_DIR, 'icons', '音乐播放.png')
+                    if os.path.exists(play_icon_path):
+                        self.play_pause_btn.setIcon(QIcon(play_icon_path))
+                    else:
+                        self.play_pause_btn.setIcon(QIcon.fromTheme("media-playback-start"))
                     self.music_name_label.setText("未检测")
         except KeyboardInterrupt:
-            pass
+             # 中断时优雅关闭
+            print("\n程序被手动终止，正在关闭界面...")
+            sys.exit(0)
     
     def play_music(self, emotion):
         """根据情绪播放音乐"""
@@ -742,13 +887,33 @@ class HomeWindow(QMainWindow):
     
     def toggle_mute(self):
         """切换静音状态"""
+        from PyQt6.QtGui import QIcon
+        
         self.is_muted = not self.is_muted
         if self.is_muted:
             pygame.mixer.music.set_volume(0)
-            self.mute_btn.setText("取消静音")
+            # 尝试设置静音图标
+            mute_icon_path = os.path.join(APP_DIR, 'icons', '静音.png')
+            if os.path.exists(mute_icon_path):
+                self.mute_btn.setIcon(QIcon(mute_icon_path))
+            else:
+                self.mute_btn.setIcon(QIcon.fromTheme("audio-volume-muted"))
         else:
-            pygame.mixer.music.set_volume(1)
-            self.mute_btn.setText("静音")
+            # 恢复之前的音量
+            volume = self.volume_slider.value() / 100
+            pygame.mixer.music.set_volume(volume)
+            # 尝试设置音量图标
+            volume_icon_path = os.path.join(APP_DIR, 'icons', '音量.png')
+            if os.path.exists(volume_icon_path):
+                self.mute_btn.setIcon(QIcon(volume_icon_path))
+            else:
+                self.mute_btn.setIcon(QIcon.fromTheme("audio-volume-high"))
+    
+    def set_volume(self, value):
+        """设置音量"""
+        if not self.is_muted:
+            volume = value / 100
+            pygame.mixer.music.set_volume(volume)
     
     def check_music_end(self):
         """检查音乐是否播放完毕，实现循环播放"""

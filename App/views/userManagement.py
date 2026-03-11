@@ -172,6 +172,9 @@ class UserManagementPage(QWidget):
         # 设置表格高度
         self.table.setMinimumHeight(500)
         
+        # 设置表格为只读模式，不允许用户直接编辑
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        
         layout.addWidget(self.table)
         self.setLayout(layout)
     
@@ -453,10 +456,181 @@ class UserManagementPage(QWidget):
         else:
             QMessageBox.warning(self, "错误", message)
     
+    def _confirm_edit_user(self, dialog, user_id, username_input, password_input, email_input, admin_checkbox):
+        """确认编辑用户"""
+        username = username_input.text().strip()
+        password = password_input.text().strip()
+        email = email_input.text().strip()
+        is_admin = admin_checkbox.currentIndex() == 1
+        
+        if not username:
+            QMessageBox.warning(self, "警告", "用户名不能为空")
+            return
+        
+        # 构建更新数据
+        update_data = {}
+        if username:
+            update_data['username'] = username
+        if password:
+            update_data['password'] = password
+        if email:
+            update_data['email'] = email
+        update_data['is_admin'] = is_admin
+        
+        success, message = self.user_db.update_user(user_id, **update_data)
+        if success:
+            QMessageBox.information(self, "成功", "用户信息已更新")
+            dialog.accept()
+        else:
+            QMessageBox.warning(self, "错误", message)
+    
     def edit_user(self, user_id):
         """编辑用户"""
-        # 这里可以实现编辑用户的功能
-        QMessageBox.information(self, "提示", f"编辑用户功能待实现")
+        # 获取用户信息
+        user = self.user_db.get_user_by_id(user_id)
+        if not user:
+            QMessageBox.warning(self, "错误", "用户不存在")
+            return
+        
+        # 创建编辑对话框
+        dialog = QDialog(self)
+        dialog.setWindowTitle("编辑用户")
+        dialog.setFixedSize(480, 350)
+        dialog.setStyleSheet("""
+            QDialog {
+                background: #1e293b;
+                border-radius: 12px;
+            }
+            QLabel {
+                color: #e2e8f0;
+                font-size: 14px;
+                font-weight: 500;
+                margin-bottom: 5px;
+            }
+            QLineEdit {
+                background: #0f172a;
+                color: #e2e8f0;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 14px;
+                font-family: 'Microsoft YaHei';
+            }
+            QLineEdit:hover {
+                border: 1px solid #2dd4bf;
+            }
+            QLineEdit:focus {
+                border: 1px solid #2dd4bf;
+                outline: none;
+            }
+            QComboBox {
+                background: #0f172a;
+                color: #e2e8f0;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                padding: 12px;
+                font-size: 14px;
+                font-family: 'Microsoft YaHei';
+            }
+            QComboBox:hover {
+                border: 1px solid #2dd4bf;
+            }
+            QComboBox::drop-down {
+                border-left: 1px solid #334155;
+                border-top-right-radius: 8px;
+                border-bottom-right-radius: 8px;
+            }
+            QComboBox::down-arrow {
+                image: url(:/icons/down_arrow.png);
+                width: 16px;
+                height: 16px;
+            }
+            QPushButton {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2dd4bf, stop:1 #14b8a6);
+                color: white;
+                border-radius: 8px;
+                border: none;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 500;
+                font-family: 'Microsoft YaHei';
+            }
+            QPushButton:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #14b8a6, stop:1 #0d9488);
+            }
+            QPushButton:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #0d9488, stop:1 #0f766e);
+            }
+            QPushButton#cancel_btn {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #64748b, stop:1 #475569);
+            }
+            QPushButton#cancel_btn:hover {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #475569, stop:1 #334155);
+            }
+            QPushButton#cancel_btn:pressed {
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #334155, stop:1 #1e293b);
+            }
+        """)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 20)
+        layout.setSpacing(20)
+        
+        form_layout = QFormLayout()
+        form_layout.setSpacing(15)
+        form_layout.setContentsMargins(0, 0, 0, 10)
+        
+        # 用户名
+        username_input = QLineEdit(user['username'])
+        username_input.setPlaceholderText("请输入用户名")
+        username_input.setFixedHeight(40)
+        form_layout.addRow("用户名:", username_input)
+        
+        # 密码 (可选)
+        password_input = QLineEdit()
+        password_input.setPlaceholderText("请输入密码（留空表示不修改）")
+        password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        password_input.setFixedHeight(40)
+        form_layout.addRow("密码:", password_input)
+        
+        # 邮箱
+        email_input = QLineEdit(user['email'] or "")
+        email_input.setPlaceholderText("请输入邮箱")
+        email_input.setFixedHeight(40)
+        form_layout.addRow("邮箱:", email_input)
+        
+        # 管理员权限
+        admin_checkbox = QComboBox()
+        admin_checkbox.addItems(["普通用户", "管理员"])
+        admin_checkbox.setCurrentIndex(1 if user['is_admin'] else 0)
+        admin_checkbox.setFixedHeight(40)
+        form_layout.addRow("权限:", admin_checkbox)
+        
+        layout.addLayout(form_layout)
+        
+        # 按钮
+        button_layout = QHBoxLayout()
+        button_layout.setSpacing(15)
+        button_layout.setContentsMargins(0, 10, 0, 0)
+        
+        cancel_btn = QPushButton("取消")
+        cancel_btn.setObjectName("cancel_btn")
+        cancel_btn.setFixedHeight(40)
+        cancel_btn.setMinimumWidth(100)
+        cancel_btn.clicked.connect(dialog.reject)
+        button_layout.addWidget(cancel_btn)
+        
+        confirm_btn = QPushButton("确认")
+        confirm_btn.setFixedHeight(40)
+        confirm_btn.setMinimumWidth(100)
+        confirm_btn.clicked.connect(lambda: self._confirm_edit_user(dialog, user_id, username_input, password_input, email_input, admin_checkbox))
+        button_layout.addWidget(confirm_btn)
+        
+        layout.addLayout(button_layout)
+        dialog.setLayout(layout)
+        
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.load_users()
     
     def delete_user(self, user_id):
         """删除用户"""

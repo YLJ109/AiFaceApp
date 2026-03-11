@@ -142,7 +142,7 @@ class UserDatabase:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        cursor.execute('SELECT id, username, email, created_at FROM users WHERE id = ?', (user_id,))
+        cursor.execute('SELECT id, username, email, created_at, is_admin FROM users WHERE id = ?', (user_id,))
         user = cursor.fetchone()
         
         conn.close()
@@ -152,7 +152,8 @@ class UserDatabase:
                 'id': user[0],
                 'username': user[1],
                 'email': user[2],
-                'created_at': user[3]
+                'created_at': user[3],
+                'is_admin': user[4]
             }
         return None
     

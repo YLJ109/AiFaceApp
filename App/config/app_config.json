@@ -9,5 +9,16 @@
     "APP_WIDTH": 1280,
     "APP_HEIGHT": 720,
     "ICON_PATH": "icons/logo.png",
-    "USE_CUDA": true
+    "USE_CUDA": true,
+    "DEFAULT_ADMIN": {
+        "username": "root",
+        "password": "123456",
+        "email": "admin@system.com"
+    },
+    "DB_TYPE": "sqlite",
+    "DB_HOST": "localhost",
+    "DB_PORT": 3306,
+    "DB_NAME": "aifaceapp",
+    "DB_USER": "root",
+    "DB_PASSWORD": "password"
 }

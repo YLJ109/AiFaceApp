@@ -22,6 +22,8 @@ class SettingsPage(QWidget):
         self.current_settings = {}
         self.init_ui()
         self.load_current_settings()
+        
+
     
     def init_ui(self):
         # 设置页面背景颜色
@@ -531,6 +533,32 @@ class SettingsPage(QWidget):
         app_height_layout.addWidget(self.app_height_spin)
         interface_layout.addLayout(app_height_layout)
         
+        # 全屏切换按钮
+        self.fullscreen_toggle_btn = QPushButton("切换全屏")
+        self.fullscreen_toggle_btn.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        self.fullscreen_toggle_btn.setStyleSheet("""
+            QPushButton {
+                background: #2dd4bf;
+                color: white;
+                padding: 12px;
+                border-radius: 8px;
+                border: none;
+            }
+            QPushButton:hover {
+                background: #14b8a6;
+            }
+        """)
+        self.fullscreen_toggle_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.fullscreen_toggle_btn.clicked.connect(self.toggle_fullscreen)
+        # 初始化按钮文本
+        main_window = self.window()
+        if hasattr(main_window, 'is_fullscreen'):
+            if main_window.is_fullscreen:
+                self.fullscreen_toggle_btn.setText("退出全屏")
+            else:
+                self.fullscreen_toggle_btn.setText("切换全屏")
+        interface_layout.addWidget(self.fullscreen_toggle_btn)
+        
         interface_group.setLayout(interface_layout)
         layout.addWidget(interface_group)
         layout.addStretch()
@@ -699,3 +727,18 @@ class SettingsPage(QWidget):
         
         # 总是发送全局变更通知
         settings_manager.notify_all_settings_changed()
+    
+    def toggle_fullscreen(self):
+        """切换全屏"""
+        # 获取主窗口
+        main_window = self.window()
+        if hasattr(main_window, 'toggle_fullscreen'):
+            main_window.toggle_fullscreen()
+            # 更新按钮文本
+            if hasattr(main_window, 'is_fullscreen'):
+                if main_window.is_fullscreen:
+                    self.fullscreen_toggle_btn.setText("退出全屏")
+                else:
+                    self.fullscreen_toggle_btn.setText("切换全屏")
+        else:
+            print("❌ 无法找到主窗口的 toggle_fullscreen 方法")
