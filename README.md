@@ -350,6 +350,131 @@ AiFaceApp/
 - **表情识别模型**：pytorch_final_3060.pth (基于MobileNetV2)
 - **支持的表情**：愤怒、厌恶、恐惧、快乐、平静、悲伤、惊讶
 
+## 模型训练
+
+### 模型性能
+
+表情识别模型在测试集上的表现：
+
+```
+📊 PyTorch 模型测试结果
+============================================================
+
+模型文件：pytorch_best_3060.pth
+测试集大小：9955 张图像
+
+总体准确率：0.8395 (83.95%)
+平均 Loss: 0.4395
+
+各类别准确率:
+  angry       : 0.7568 (75%) - 1184 张
+  disgust     : 0.9628 (96%) - 1184 张
+  fear        : 0.7086 (70%) - 1184 张
+  happy       : 0.9399 (93%) - 2279 张
+  neutral     : 0.8028 (80%) - 1633 张
+  sad         : 0.7429 (74%) - 1307 张
+  surprise    : 0.8936 (89%) - 1184 张
+```
+
+### 模型准确率可视化
+
+![模型准确率](App/InterFaceFunctionImage/model_accuracy.png)
+
+图表展示了各表情类别的识别准确率和样本数量分布，直观反映了模型在不同表情上的表现。
+
+### 训练脚本
+
+项目包含完整的模型训练脚本，位于 `7emotions_96x96_mobilenetv2_3060_train/scripts/` 目录：
+
+#### 1. 数据划分脚本 (split_data.py)
+
+用于将数据集划分为训练集和验证集：
+
+```bash
+cd 7emotions_96x96_mobilenetv2_3060_train/scripts
+python split_data.py
+```
+
+功能：
+- 自动将数据集按 80% 训练集、20% 验证集划分
+- 支持自定义划分比例
+- 确保每个表情类别都有足够的验证集样本
+
+#### 2. 模型训练脚本 (train_pytorch_3060.py)
+
+使用 PyTorch 训练表情识别模型，针对 RTX 3060 6G 优化：
+
+```bash
+cd 7emotions_96x96_mobilenetv2_3060_train/scripts
+python train_pytorch_3060.py
+```
+
+特点：
+- 使用 MobileNetV2 作为骨干网络
+- 支持混合精度训练（AMP）
+- 优化的批处理大小（Batch Size: 128）
+- 学习率调度（CosineAnnealing）
+- 早停机制防止过拟合
+- 预计训练时间：25-35 分钟（50 epochs）
+
+训练配置：
+- 图像尺寸：96x96
+- Batch Size：128
+- 学习率：0.001
+- 优化器：Adam + 权重衰减
+- 数据增强：随机翻转、旋转、平移
+
+#### 3. 实时检测脚本 (realtime_stable.py)
+
+独立的实时摄像头表情检测脚本：
+
+```bash
+cd 7emotions_96x96_mobilenetv2_3060_train/scripts
+python realtime_stable.py
+```
+
+功能：
+- 实时摄像头检测
+- 表情识别和置信度显示
+- 表情缓冲和平滑处理
+- FPS 显示
+- 截图功能（按 's' 键）
+- 退出功能（按 'q' 或 ESC 键）
+
+### 数据集
+
+数据集下载链接（百度网盘）：
+- 链接：https://pan.quark.cn/s/5ab3be77a49c
+- 密码：sfK2
+
+数据集结构：
+```
+dataset/
+├── train/
+│   ├── angry/
+│   ├── disgust/
+│   ├── fear/
+│   ├── happy/
+│   ├── neutral/
+│   ├── sad/
+│   └── surprise/
+└── val/
+    ├── angry/
+    ├── disgust/
+    ├── fear/
+    ├── happy/
+    ├── neutral/
+    ├── sad/
+    └── surprise/
+```
+
+### 训练环境要求
+
+- Python 3.8+
+- PyTorch 1.10+
+- CUDA 11.0+ (GPU 训练)
+- 其他依赖：torchvision, tqdm, numpy, opencv-python
+
 ## 配置说明
 
 配置文件位于 `App/config/app_config.json`，可修改以下参数：
