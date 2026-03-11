@@ -219,15 +219,13 @@ class HomeWindow(QMainWindow):
         username = self.user_data['username']
         if self.user_data.get('is_admin', False):
             user_info_text = f"👤 {username} (管理员)"
-            user_info_style = "color: #2dd4bf; background: rgba(45, 212, 191, 0.1); padding: 10px 10px; border-radius: 8px;"
+            user_info_style = "color: #2dd4bf; background: rgba(45, 212, 191, 0.1); padding: 8px 10px; border-radius: 8px;"
         else:
             user_info_text = f"👤 {username}"
-            user_info_style = "color: #94a3b8; background: rgba(45, 212, 191, 0.1); padding: 10px 10px; border-radius: 8px;"
+            user_info_style = "color: #94a3b8; background: rgba(45, 212, 191, 0.1); padding: 8px 10px; border-radius: 8px;"
         
         self.user_info_label = QLabel(user_info_text)
         self.user_info_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
-        # 调整样式，减少 padding
-        user_info_style = user_info_style.replace("padding: 10px 10px", "padding: 8px 10px")
         self.user_info_label.setStyleSheet(user_info_style)
         top_layout.addWidget(self.user_info_label)
         
