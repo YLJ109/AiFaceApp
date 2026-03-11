@@ -70,6 +70,7 @@ class VideoDetectionPage(QWidget):
         self.face_threads = []
         self.is_playing = False
         self.video_path = None
+        self.current_emotion = "未检测"  # 当前检测到的情绪
         self.init_ui()
         self.load_model()
     
@@ -639,6 +640,10 @@ class VideoDetectionPage(QWidget):
             self.face_results[face_idx] = {'emotion': smooth_emotion, 'confidence': confidence}
         else:
             self.face_results.append({'emotion': smooth_emotion, 'confidence': confidence})
+        
+        # 更新当前情绪（使用第一个人脸的情绪）
+        if face_idx == 0:
+            self.current_emotion = smooth_emotion
         
         self.emotion_stats[smooth_emotion] += 1
     

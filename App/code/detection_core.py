@@ -9,7 +9,9 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from collections import deque
 from PyQt6.QtCore import QThread, pyqtSignal
-from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE
+import os
+import random
+from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE, APP_DIR
 
 class EmotionClassifier(nn.Module):
     """表情分类模型"""
@@ -25,16 +27,25 @@ class EmotionClassifier(nn.Module):
         return self.backbone(x)
 
 class DetectionCore:
-    """检测核心类"""
+    """检测核心类 - 单例模式"""
+    _instance = None
     
-    def __init__(self):
-        self.model = None
-        self.transform = None
-        self.device = None
-        self.face_net = None
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DetectionCore, cls).__new__(cls)
+            # 初始化只执行一次
+            cls._instance.model = None
+            cls._instance.transform = None
+            cls._instance.device = None
+            cls._instance.face_net = None
+        return cls._instance
     
     def load_model(self):
         """加载模型"""
+        # 如果模型已经加载，直接返回
+        if self.model is not None:
+            return True
+        
         try:
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             print(f"使用设备：{self.device}")
@@ -62,6 +73,10 @@ class DetectionCore:
     
     def load_face_net(self):
         """加载人脸检测模型"""
+        # 如果人脸检测模型已经加载，直接返回
+        if self.face_net is not None:
+            return True
+        
         try:
             print("🔍 加载人脸检测模型...")
             self.face_net = cv2.dnn.readNetFromCaffe(
@@ -200,6 +215,41 @@ class DetectionCore:
                 draw.text((x, y - 35), chinese_text, font=font, fill=(color[2], color[1], color[0]))  # 主文字（转换为RGB）
         
         return cv2.cvtColor(np.array(frame_pil_full), cv2.COLOR_RGB2BGR)
+    
+    def play_music(self, emotion, music_dir=None):
+        """根据表情播放音乐"""
+        try:
+            # 如果没有指定音乐目录，使用默认目录（使用中文名称）
+            if not music_dir:
+                chinese_emotion = EMOTION_CHINESE.get(emotion, emotion)
+                music_dir = os.path.join(APP_DIR, 'music', chinese_emotion)
+            
+            # 检查目录是否存在
+            if not os.path.exists(music_dir):
+                print(f"⚠️ 音乐目录不存在：{music_dir}")
+                return
+            
+            # 获取目录中的音乐文件
+            music_files = [f for f in os.listdir(music_dir) if f.endswith(('.mp3', '.wav', '.ogg', '.flac'))]
+            
+            if not music_files:
+                print(f"⚠️ 音乐目录中没有音乐文件：{music_dir}")
+                return
+            
+            # 随机选择一个音乐文件
+            selected_file = random.choice(music_files)
+            music_path = os.path.join(music_dir, selected_file)
+            
+            # 播放音乐（这里只是打印信息，实际播放需要使用相应的库）
+            print(f"🎵 正在播放{EMOTION_CHINESE.get(emotion, emotion)}音乐：{selected_file}")
+            
+            # 实际播放音乐的代码（需要安装相应的库，如pygame或playsound）
+            # 例如使用playsound库：
+            # from playsound import playsound
+            # playsound(music_path)
+            
+        except Exception as e:
+            print(f"❌ 播放音乐错误：{e}")
 
 class PredictionThread(QThread):
     """预测线程"""

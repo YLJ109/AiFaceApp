@@ -24,6 +24,7 @@ class ImageDetectionPage(QWidget):
         self.model_loaded = False
         self.current_image = None  # 保存当前处理的图像
         self.current_image_path = None  # 保存当前处理的图像路径
+        self.current_emotion = "未检测"  # 当前检测到的情绪
         self.init_ui()
     
     def ensure_model_loaded(self):
@@ -384,6 +385,9 @@ class ImageDetectionPage(QWidget):
                     print(f"✅ 检测到 {len(results)} 个人脸")
                     for text in result_texts:
                         print(f"  {text}")
+                    
+                    # 更新当前情绪
+                    self.current_emotion = results[0][4]  # 使用第一个人脸的情绪
                     
                     # 统计检测到的人脸数据
                     for x, y, w, h, emotion, confidence in results:
