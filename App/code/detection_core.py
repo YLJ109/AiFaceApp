@@ -88,10 +88,10 @@ class DetectionCore:
         
         try:
             print("🔍 加载人脸检测模型...")
-            self.face_net = cv2.dnn.readNetFromCaffe(
-                'App/models/deploy.prototxt',
-                'App/models/res10_300x300_ssd_iter_140000_fp16.caffemodel'
-            )
+            # 使用绝对路径，确保在不同IDE中都能正确加载
+            prototxt_path = os.path.join(APP_DIR, 'models', 'deploy.prototxt')
+            caffemodel_path = os.path.join(APP_DIR, 'models', 'res10_300x300_ssd_iter_140000_fp16.caffemodel')
+            self.face_net = cv2.dnn.readNetFromCaffe(prototxt_path, caffemodel_path)
             # 优化模型运行
             if cv2.cuda.getCudaEnabledDeviceCount() > 0:
                 self.face_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)

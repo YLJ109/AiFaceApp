@@ -1,13 +1,17 @@
 """
 主界面 - 面部表情检测系统
 """
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QStackedWidget, QPushButton, QLabel, QFrame, QSlider)
 from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QKeyEvent, QIcon, QPixmap
 import os
 import random
+import sys
+import warnings
+# 屏蔽pkg_resources相关的废弃警告
+warnings.filterwarnings("ignore", category=UserWarning, module="pygame.pkgdata")
 import pygame
 from App.code.config import APP_NAME, APP_VERSION, ICON_PATH, APP_DIR, EMOTION_CHINESE, EMOTION_CLASSES
 
@@ -355,7 +359,6 @@ class HomeWindow(QMainWindow):
                 border-radius: 10px;
                 margin: -8px 0;
                 border: none;
-                box-shadow: none;
             }
             QSlider::handle:horizontal:hover {
                 background: #337bf9;
