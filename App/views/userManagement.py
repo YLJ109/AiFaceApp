@@ -160,7 +160,7 @@ class UserManagementPage(QWidget):
         # 设置列宽
         self.table.setColumnWidth(0, 80)
         self.table.setColumnWidth(1, 180)
-        self.table.setColumnWidth(2, 220)
+        self.table.setColumnWidth(2, 200)
         self.table.setColumnWidth(3, 160)
         self.table.setColumnWidth(4, 160)
         self.table.setColumnWidth(5, 100)
