@@ -3,10 +3,11 @@
 """
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QStackedWidget, QPushButton, QLabel, QFrame)
+from PyQt6.QtCore import QSize
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QKeyEvent, QIcon, QPixmap
 import os
-from App.code.config import APP_NAME, APP_VERSION, ICON_PATH
+from App.code.config import APP_NAME, APP_VERSION, ICON_PATH, APP_DIR
 
 class HomeWindow(QMainWindow):
     """主窗口"""
@@ -95,23 +96,29 @@ class HomeWindow(QMainWindow):
         
         # 导航按钮
         nav_buttons = [
-            ("📹 摄像头检测", "camera"),
-            ("🖼️ 图片检测", "image"),
-            ("📦 批量图片检测", "batch_image"),
-            ("🎬 视频检测", "video"),
-            ("📊 数据统计", "statistics"),
+            ("摄像头检测", "camera", "摄像头检测.png"),
+            ("图片检测", "image", "图片检测.png"),
+            ("批量图片检测", "batch_image", "批量图片检测.png"),
+            ("视频检测", "video", "视频检测.png"),
+            ("数据统计", "statistics", "数据统计.png"),
         ]
         
         # 如果是管理员，添加用户管理选项
         if self.user_data.get('is_admin', False):
-            nav_buttons.append(("👥 用户管理", "user_management"))
+            nav_buttons.append(("用户管理", "user_management", "用户管理.png"))
         
-        nav_buttons.append(("⚙️ 系统设置", "settings"))
+        nav_buttons.append(("系统设置", "settings", "设置.png"))
         
         self.nav_button_map = {}  # 保存按钮引用
         
-        for text, page in nav_buttons:
+        for text, page, icon_name in nav_buttons:
             btn = QPushButton(text)
+            # 设置图标
+            icon_path = os.path.join(APP_DIR, 'icons', icon_name)
+            if os.path.exists(icon_path):
+                icon = QIcon(icon_path)
+                btn.setIcon(icon)
+                btn.setIconSize(QSize(20, 20))
             btn.setFont(QFont("Microsoft YaHei", 11))
             btn.setStyleSheet("""
                 QPushButton {
@@ -146,7 +153,13 @@ class HomeWindow(QMainWindow):
         layout.addStretch()
         
         # 退出按钮
-        logout_btn = QPushButton("🚪 退出程序")
+        logout_btn = QPushButton("退出程序")
+        # 设置图标
+        logout_icon_path = os.path.join(APP_DIR, 'icons', '退出.png')
+        if os.path.exists(logout_icon_path):
+            logout_icon = QIcon(logout_icon_path)
+            logout_btn.setIcon(logout_icon)
+            logout_btn.setIconSize(QSize(20, 20))
         logout_btn.setFont(QFont("Microsoft YaHei", 11))
         logout_btn.setStyleSheet("""
             QPushButton {
@@ -195,7 +208,8 @@ class HomeWindow(QMainWindow):
         
         # 时间显示
         self.time_label = QLabel(self.get_current_time())
-        self.time_label.setStyleSheet("color: #94a3b8; font-size: 14px; background: rgba(45, 212, 191, 0.1); padding: 10px 10px; border-radius: 8px;")
+        self.time_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        self.time_label.setStyleSheet("color: #94a3b8; background: rgba(45, 212, 191, 0.1); padding: 8px 10px; border-radius: 8px;")
         top_layout.addWidget(self.time_label)
         
         # 添加间距
@@ -211,6 +225,9 @@ class HomeWindow(QMainWindow):
             user_info_style = "color: #94a3b8; background: rgba(45, 212, 191, 0.1); padding: 10px 10px; border-radius: 8px;"
         
         self.user_info_label = QLabel(user_info_text)
+        self.user_info_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
+        # 调整样式，减少 padding
+        user_info_style = user_info_style.replace("padding: 10px 10px", "padding: 8px 10px")
         self.user_info_label.setStyleSheet(user_info_style)
         top_layout.addWidget(self.user_info_label)
         

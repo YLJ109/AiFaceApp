@@ -4,13 +4,14 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QFrame, QSpinBox, QCheckBox, QGroupBox,
                              QTabWidget)
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt, QTimer, QSize
+from PyQt6.QtGui import QFont, QIcon
+import os
 from App.code.config import (CAMERA_INDEX, CAMERA_WIDTH, CAMERA_HEIGHT, 
                              FRAME_RATE, SHOW_BOX, SHOW_LABEL, ENABLE_DETECTION,
                              APP_WIDTH, APP_HEIGHT, IMAGE_SIZE, MODEL_PATH,
                              EMOTION_CLASSES, EMOTION_CHINESE, EMOTION_COLORS,
-                             APP_NAME, APP_VERSION, USE_CUDA)
+                             APP_NAME, APP_VERSION, USE_CUDA, APP_DIR)
 from App.code.settings_manager import settings_manager
 
 class SettingsPage(QWidget):
@@ -23,6 +24,9 @@ class SettingsPage(QWidget):
         self.load_current_settings()
     
     def init_ui(self):
+        # 设置页面背景颜色
+        self.setStyleSheet("background: #1e293b;")
+        
         main_layout = QVBoxLayout()
         main_layout.setContentsMargins(20, 20, 20, 20)
         main_layout.setSpacing(20)
@@ -66,7 +70,13 @@ class SettingsPage(QWidget):
         main_layout.addWidget(self.tab_widget)
         
         # 保存按钮
-        save_btn = QPushButton("💾 保存所有设置")
+        save_btn = QPushButton("保存所有设置")
+        # 设置图标
+        save_icon_path = os.path.join(APP_DIR, 'icons', '保存.png')
+        if os.path.exists(save_icon_path):
+            save_icon = QIcon(save_icon_path)
+            save_btn.setIcon(save_icon)
+            save_btn.setIconSize(QSize(24, 24))
         save_btn.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
         save_btn.setStyleSheet("""
             QPushButton {
@@ -126,7 +136,7 @@ class SettingsPage(QWidget):
         # 摄像头索引
         camera_index_layout = QHBoxLayout()
         camera_index_label = QLabel("摄像头索引:")
-        camera_index_label.setFont(QFont("Microsoft YaHei", 12))
+        camera_index_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         camera_index_label.setStyleSheet("color: #94a3b8; min-width: 120px;")
         self.camera_index_spin = QSpinBox()
         self.camera_index_spin.setRange(0, 5)
@@ -148,7 +158,7 @@ class SettingsPage(QWidget):
         # 摄像头宽度
         camera_width_layout = QHBoxLayout()
         camera_width_label = QLabel("摄像头宽度:")
-        camera_width_label.setFont(QFont("Microsoft YaHei", 12))
+        camera_width_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         camera_width_label.setStyleSheet("color: #94a3b8; min-width: 120px;")
         self.camera_width_spin = QSpinBox()
         self.camera_width_spin.setRange(640, 1920)
@@ -171,7 +181,7 @@ class SettingsPage(QWidget):
         # 摄像头高度
         camera_height_layout = QHBoxLayout()
         camera_height_label = QLabel("摄像头高度:")
-        camera_height_label.setFont(QFont("Microsoft YaHei", 12))
+        camera_height_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         camera_height_label.setStyleSheet("color: #94a3b8; min-width: 120px;")
         self.camera_height_spin = QSpinBox()
         self.camera_height_spin.setRange(480, 1080)
@@ -194,7 +204,7 @@ class SettingsPage(QWidget):
         # 帧率
         frame_rate_layout = QHBoxLayout()
         frame_rate_label = QLabel("帧率:")
-        frame_rate_label.setFont(QFont("Microsoft YaHei", 12))
+        frame_rate_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         frame_rate_label.setStyleSheet("color: #94a3b8; min-width: 120px;")
         self.frame_rate_spin = QSpinBox()
         self.frame_rate_spin.setRange(1, 60)
@@ -217,7 +227,13 @@ class SettingsPage(QWidget):
         layout.addWidget(camera_group)
         layout.addStretch()
         page.setLayout(layout)
-        self.tab_widget.addTab(page, "🎥 摄像头")
+        # 设置图标
+        camera_icon_path = os.path.join(APP_DIR, 'icons', '摄像头检测.png')
+        if os.path.exists(camera_icon_path):
+            camera_icon = QIcon(camera_icon_path)
+            self.tab_widget.addTab(page, camera_icon, "摄像头")
+        else:
+            self.tab_widget.addTab(page, "摄像头")
     
     def create_display_tab(self):
         """创建显示设置标签页"""
@@ -250,7 +266,7 @@ class SettingsPage(QWidget):
         # 显示框
         self.show_box_check = QCheckBox("显示人脸框")
         self.show_box_check.setChecked(SHOW_BOX)
-        self.show_box_check.setFont(QFont("Microsoft YaHei", 12))
+        self.show_box_check.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.show_box_check.setStyleSheet("""
             QCheckBox {
                 color: #94a3b8;
@@ -273,7 +289,7 @@ class SettingsPage(QWidget):
         # 显示标签
         self.show_label_check = QCheckBox("显示标签")
         self.show_label_check.setChecked(SHOW_LABEL)
-        self.show_label_check.setFont(QFont("Microsoft YaHei", 12))
+        self.show_label_check.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.show_label_check.setStyleSheet("""
             QCheckBox {
                 color: #94a3b8;
@@ -296,7 +312,7 @@ class SettingsPage(QWidget):
         # 启用检测
         self.enable_detection_check = QCheckBox("启用检测")
         self.enable_detection_check.setChecked(ENABLE_DETECTION)
-        self.enable_detection_check.setFont(QFont("Microsoft YaHei", 12))
+        self.enable_detection_check.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.enable_detection_check.setStyleSheet("""
             QCheckBox {
                 color: #94a3b8;
@@ -320,7 +336,13 @@ class SettingsPage(QWidget):
         layout.addWidget(display_group)
         layout.addStretch()
         page.setLayout(layout)
-        self.tab_widget.addTab(page, "👁️ 显示")
+        # 设置图标
+        display_icon_path = os.path.join(APP_DIR, 'icons', '显示.png')
+        if os.path.exists(display_icon_path):
+            display_icon = QIcon(display_icon_path)
+            self.tab_widget.addTab(page, display_icon, "显示")
+        else:
+            self.tab_widget.addTab(page, "显示")
     
     def create_model_tab(self):
         """创建模型设置标签页"""
@@ -353,10 +375,10 @@ class SettingsPage(QWidget):
         # 模型路径
         model_path_layout = QVBoxLayout()
         model_path_label = QLabel("模型路径:")
-        model_path_label.setFont(QFont("Microsoft YaHei", 12))
+        model_path_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         model_path_label.setStyleSheet("color: #94a3b8;")
         self.model_path_label = QLabel(MODEL_PATH)
-        self.model_path_label.setFont(QFont("Microsoft YaHei", 10))
+        self.model_path_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
         self.model_path_label.setStyleSheet("""
             color: #64748b;
             background: #0f172a;
@@ -371,10 +393,10 @@ class SettingsPage(QWidget):
         # 图像尺寸
         image_size_layout = QHBoxLayout()
         image_size_label = QLabel("图像尺寸:")
-        image_size_label.setFont(QFont("Microsoft YaHei", 12))
+        image_size_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         image_size_label.setStyleSheet("color: #94a3b8; min-width: 120px;")
         self.image_size_label = QLabel(f"{IMAGE_SIZE} x {IMAGE_SIZE}")
-        self.image_size_label.setFont(QFont("Microsoft YaHei", 12))
+        self.image_size_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.image_size_label.setStyleSheet("color: #e2e8f0;")
         image_size_layout.addWidget(image_size_label)
         image_size_layout.addWidget(self.image_size_label)
@@ -383,11 +405,11 @@ class SettingsPage(QWidget):
         # 表情类别
         emotion_classes_layout = QVBoxLayout()
         emotion_classes_label = QLabel("表情类别:")
-        emotion_classes_label.setFont(QFont("Microsoft YaHei", 12))
+        emotion_classes_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         emotion_classes_label.setStyleSheet("color: #94a3b8;")
         emotion_classes_text = ", ".join([EMOTION_CHINESE.get(e, e) for e in EMOTION_CLASSES])
         self.emotion_classes_label = QLabel(emotion_classes_text)
-        self.emotion_classes_label.setFont(QFont("Microsoft YaHei", 10))
+        self.emotion_classes_label.setFont(QFont("Microsoft YaHei", 10, QFont.Weight.Bold))
         self.emotion_classes_label.setStyleSheet("""
             color: #64748b;
             background: #0f172a;
@@ -402,7 +424,7 @@ class SettingsPage(QWidget):
         # 使用CUDA
         use_cuda_layout = QHBoxLayout()
         use_cuda_label = QLabel("使用CUDA:")
-        use_cuda_label.setFont(QFont("Microsoft YaHei", 12))
+        use_cuda_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         use_cuda_label.setStyleSheet("color: #94a3b8; min-width: 120px;")
         self.use_cuda_check = QCheckBox()
         self.use_cuda_check.setChecked(USE_CUDA)
@@ -427,7 +449,13 @@ class SettingsPage(QWidget):
         layout.addWidget(model_group)
         layout.addStretch()
         page.setLayout(layout)
-        self.tab_widget.addTab(page, "🤖 模型")
+        # 设置图标
+        model_icon_path = os.path.join(APP_DIR, 'icons', '模型.png')
+        if os.path.exists(model_icon_path):
+            model_icon = QIcon(model_icon_path)
+            self.tab_widget.addTab(page, model_icon, "模型")
+        else:
+            self.tab_widget.addTab(page, "模型")
     
     def create_interface_tab(self):
         """创建界面设置标签页"""
@@ -507,7 +535,13 @@ class SettingsPage(QWidget):
         layout.addWidget(interface_group)
         layout.addStretch()
         page.setLayout(layout)
-        self.tab_widget.addTab(page, "🎨 界面")
+        # 设置图标
+        interface_icon_path = os.path.join(APP_DIR, 'icons', '界面.png')
+        if os.path.exists(interface_icon_path):
+            interface_icon = QIcon(interface_icon_path)
+            self.tab_widget.addTab(page, interface_icon, "界面")
+        else:
+            self.tab_widget.addTab(page, "界面")
     
     def create_system_tab(self):
         """创建系统设置标签页"""
@@ -565,7 +599,13 @@ class SettingsPage(QWidget):
         layout.addWidget(system_group)
         layout.addStretch()
         page.setLayout(layout)
-        self.tab_widget.addTab(page, "💾 系统")
+        # 设置图标
+        system_icon_path = os.path.join(APP_DIR, 'icons', '系统系统.png')
+        if os.path.exists(system_icon_path):
+            system_icon = QIcon(system_icon_path)
+            self.tab_widget.addTab(page, system_icon, "系统")
+        else:
+            self.tab_widget.addTab(page, "系统")
     
     def load_current_settings(self):
         """加载当前设置"""

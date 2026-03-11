@@ -3,7 +3,7 @@
 """
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFileDialog, QFrame, QScrollArea, QGridLayout
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtGui import QImage, QPixmap
+from PyQt6.QtGui import QImage, QPixmap, QIcon
 import cv2
 import torch
 import torch.nn as nn
@@ -11,16 +11,15 @@ from torchvision import transforms, models
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import os
-from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE, SHOW_BOX, SHOW_LABEL, ENABLE_DETECTION
+from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE, SHOW_BOX, SHOW_LABEL, ENABLE_DETECTION, APP_DIR
+from App.code.detection_core import DetectionCore
 
 class BatchImageDetectionPage(QWidget):
     """批量图片检测页面"""
     
     def __init__(self):
         super().__init__()
-        self.model = None
-        self.transform = None
-        self.device = None
+        self.detection_core = DetectionCore()  # 创建检测核心实例
         self.model_loaded = False
         self.batch_images = []  # 批量检测的图片列表
         self.batch_save_dir = None  # 批量检测的保存目录
@@ -81,7 +80,13 @@ class BatchImageDetectionPage(QWidget):
         batch_layout.setSpacing(12)
         
         # 选择文件夹按钮
-        batch_select_folder_btn = QPushButton("📂 选择文件夹")
+        batch_select_folder_btn = QPushButton("选择目录")
+        # 设置图标
+        folder_icon_path = os.path.join(APP_DIR, 'icons', '选择文件夹.png')
+        if os.path.exists(folder_icon_path):
+            folder_icon = QIcon(folder_icon_path)
+            batch_select_folder_btn.setIcon(folder_icon)
+            batch_select_folder_btn.setIconSize(QSize(24, 24))
         batch_select_folder_btn.setStyleSheet("""
             QPushButton {
                 background: #2dd4bf;
@@ -100,7 +105,13 @@ class BatchImageDetectionPage(QWidget):
         batch_layout.addWidget(batch_select_folder_btn)
         
         # 选择保存目录按钮
-        batch_save_btn = QPushButton("💾 选择保存目录")
+        batch_save_btn = QPushButton("保存目录")
+        # 设置图标
+        save_icon_path = os.path.join(APP_DIR, 'icons', '保存.png')
+        if os.path.exists(save_icon_path):
+            save_icon = QIcon(save_icon_path)
+            batch_save_btn.setIcon(save_icon)
+            batch_save_btn.setIconSize(QSize(24, 24))
         batch_save_btn.setStyleSheet("""
             QPushButton {
                 background: #8b5cf6;
@@ -119,7 +130,13 @@ class BatchImageDetectionPage(QWidget):
         batch_layout.addWidget(batch_save_btn)
         
         # 开始批量检测按钮
-        self.batch_start_btn = QPushButton("🚀 开始检测")
+        self.batch_start_btn = QPushButton("开始检测")
+        # 设置图标
+        start_icon_path = os.path.join(APP_DIR, 'icons', '开始检测.png')
+        if os.path.exists(start_icon_path):
+            start_icon = QIcon(start_icon_path)
+            self.batch_start_btn.setIcon(start_icon)
+            self.batch_start_btn.setIconSize(QSize(24, 24))
         self.batch_start_btn.setStyleSheet("""
             QPushButton {
                 background: #f59e0b;
@@ -138,7 +155,13 @@ class BatchImageDetectionPage(QWidget):
         batch_layout.addWidget(self.batch_start_btn)
         
         # 清空选择按钮（放在最下面）
-        clear_btn = QPushButton("🗑️ 清空选择")
+        clear_btn = QPushButton("清空选择")
+        # 设置图标
+        clear_icon_path = os.path.join(APP_DIR, 'icons', '清空选择.png')
+        if os.path.exists(clear_icon_path):
+            clear_icon = QIcon(clear_icon_path)
+            clear_btn.setIcon(clear_icon)
+            clear_btn.setIconSize(QSize(24, 24))
         clear_btn.setStyleSheet("""
             QPushButton {
                 background: #ef4444;
@@ -269,35 +292,9 @@ class BatchImageDetectionPage(QWidget):
     def load_model(self):
         """加载模型"""
         try:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            print(f"使用设备：{self.device}")
-            
-            checkpoint = torch.load(MODEL_PATH, map_location=self.device)
-            
-            class EmotionClassifier(nn.Module):
-                def __init__(self, num_classes=7):
-                    super().__init__()
-                    from torchvision.models import MobileNet_V2_Weights
-                    self.backbone = models.mobilenet_v2(weights=MobileNet_V2_Weights.DEFAULT)
-                    num_features = self.backbone.classifier[1].in_features
-                    self.backbone.features[0][0] = nn.Conv2d(1, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
-                    self.backbone.classifier = nn.Sequential(nn.Dropout(p=0.2), nn.Linear(num_features, num_classes))
-                def forward(self, x):
-                    return self.backbone(x)
-            
-            self.model = EmotionClassifier(num_classes=7).to(self.device)
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            self.model.eval()
-            
-            self.transform = transforms.Compose([
-                transforms.Grayscale(num_output_channels=1),
-                transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5], std=[0.5])
-            ])
-            
-            print("✅ 模型加载成功")
-            self.model_loaded = True
+            success = self.detection_core.load_model()
+            if success:
+                self.model_loaded = True
         except Exception as e:
             print(f"❌ 模型加载失败：{e}")
             import traceback
@@ -572,120 +569,37 @@ class BatchImageDetectionPage(QWidget):
         results = []
         
         if ENABLE_DETECTION:
-            # 确保人脸检测模型已加载
-            if not hasattr(self, 'face_net') or self.face_net is None:
-                print("🔍 加载人脸检测模型...")
-                self.face_net = cv2.dnn.readNetFromCaffe(
-                    'App/models/deploy.prototxt',
-                    'App/models/res10_300x300_ssd_iter_140000_fp16.caffemodel'
-                )
-                # 优化模型运行
-                if cv2.cuda.getCudaEnabledDeviceCount() > 0:
-                    self.face_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-                    self.face_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
-                else:
-                    self.face_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-                    self.face_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+            # 加载人脸检测模型
+            self.detection_core.load_face_net()
             
-            # 使用Caffe模型进行人脸检测
-            h, w = image.shape[:2]
-            blob = cv2.dnn.blobFromImage(cv2.resize(image, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
-            self.face_net.setInput(blob)
-            detections = self.face_net.forward()
-            
-            # 解析检测结果
-            faces = []
-            for i in range(detections.shape[2]):
-                confidence = detections[0, 0, i, 2]
-                if confidence > 0.6:  # 置信度阈值
-                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                    (x, y, x1, y1) = box.astype("int")
-                    # 确保边界有效
-                    x, y = max(0, x), max(0, y)
-                    w_box, h_box = max(10, x1-x), max(10, y1-y)
-                    faces.append((x, y, w_box, h_box))
+            # 检测人脸
+            faces = self.detection_core.detect_faces(image)
             
             if len(faces) == 0:
                 return results, image
             
             # 处理所有人脸
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            face_results = []
             
-            for idx, (x, y, w_box, h_box) in enumerate(faces):
+            for idx, (x, y, w, h) in enumerate(faces):
                 # 提取人脸区域
-                face_roi = gray[y:y+h_box, x:x+w_box]
+                face_roi = gray[y:y+h, x:x+w]
                 face_resized = cv2.resize(face_roi, (96, 96))
+                face_pil = Image.fromarray(face_resized)
                 
                 # 模型预测
-                face_pil = Image.fromarray(face_resized)
-                face_tensor = self.transform(face_pil).unsqueeze(0).to(self.device)
+                emotion, confidence = self.detection_core.predict_emotion(face_pil)
                 
-                with torch.no_grad():
-                    outputs = self.model(face_tensor)
-                    probs = torch.nn.functional.softmax(outputs, dim=1)
-                    conf, pred = torch.max(probs, 1)
-                    emotion = EMOTION_CLASSES[pred.item()]
-                    confidence = conf.item()
-                
-                results.append((x, y, w_box, h_box, emotion, confidence))
+                results.append((x, y, w, h, emotion, confidence))
+                face_results.append({'emotion': emotion, 'confidence': confidence})
             
-            # 绘制矩形框
-            for idx, (x, y, w_box, h_box, emotion, confidence) in enumerate(results):
-                color = EMOTION_COLORS.get(emotion, (0, 255, 0))
-                
-                if SHOW_BOX:
-                    # 绘制矩形框
-                    cv2.rectangle(image, (x, y), (x+w_box, y+h_box), color, 3)
-                    # 添加内层细线
-                    cv2.rectangle(image, (x+1, y+1), (x+w_box-1, y+h_box-1), (255, 255, 255), 1)
+            # 绘制四个角
+            if SHOW_BOX:
+                image = self.detection_core.draw_four_corners(image, faces, face_results)
             
-            # 绘制文字标签（完全按照图片检测页面的实现）
+            # 绘制文字标签
             if SHOW_LABEL:
-                print(f"🔍 开始绘制标签，results: {len(results)}")
-                # 计算图片大小，动态调整字体大小（与图片检测页面一致）
-                h_img, w_img = image.shape[:2]
-                base_font_size = max(18, min(36, int(min(w_img, h_img) * 0.03)))
-                print(f"📏 字体大小: {base_font_size}")
-                
-                image_pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-                draw = ImageDraw.Draw(image_pil)
-                
-                for idx, (x, y, w_box, h_box, emotion, confidence) in enumerate(results):
-                    color = EMOTION_COLORS.get(emotion, (0, 255, 0))
-                    print(f"😀 表情: {emotion}, 置信度: {confidence}, 颜色: {color}")
-                    
-                    # 表情图标映射
-                    emotion_icons = {
-                        'angry': '😠', 'disgust': '🤢', 'fear': '😨',
-                        'happy': '😊', 'neutral': '😐', 'sad': '😢', 'surprise': '😲'
-                    }
-                    
-                    # 使用PIL绘制中文标签，加上表情图标
-                    chinese_text = f"{emotion_icons.get(emotion, '😐')} 👤{idx+1} {EMOTION_CHINESE.get(emotion, emotion)}: {confidence:.2f}"
-                    print(f"📝 标签文本: {chinese_text}")
-                    
-                    try:
-                        font = ImageFont.truetype("msyhbd.ttc", base_font_size, encoding="utf-8")
-                        print(f"🖋️ 成功加载字体: msyhbd.ttc")
-                    except:
-                        try:
-                            font = ImageFont.truetype("simhei.ttf", base_font_size, encoding="utf-8")
-                            print(f"🖋️ 成功加载字体: simhei.ttf")
-                        except:
-                            font = ImageFont.load_default()
-                            print(f"🖋️ 使用默认字体")
-                    
-                    # 绘制文字阴影（与图片检测页面完全一致）
-                    shadow_offset = 2
-                    draw.text((x + shadow_offset, y - base_font_size - 10 + shadow_offset), chinese_text, 
-                              font=font, fill=(0, 0, 0))
-                    # 绘制主文字（与图片检测页面完全一致）
-                    draw.text((x, y - base_font_size - 10), chinese_text, 
-                              font=font, fill=(color[2], color[1], color[0]))
-                    print(f"✅ 标签绘制完成")
-                
-                # 转换回OpenCV格式
-                image = cv2.cvtColor(np.array(image_pil), cv2.COLOR_RGB2BGR)
-                print(f"🔄 转换回OpenCV格式")
+                image = self.detection_core.draw_labels(image, faces, face_results)
         
         return results, image

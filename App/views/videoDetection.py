@@ -3,8 +3,8 @@
 """
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QPushButton, QFrame, QFileDialog, QSlider, QGraphicsOpacityEffect)
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QImage, QPixmap
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve, QSize
+from PyQt6.QtGui import QFont, QImage, QPixmap, QIcon
 import cv2
 import torch
 import torch.nn as nn
@@ -13,8 +13,10 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from collections import deque
 import pyqtgraph as pg
-from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE
+import os
+from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE, APP_DIR
 from App.code.settings_manager import settings_manager
+from App.code.detection_core import DetectionCore, PredictionThread
 
 class VideoPredictionThread(QThread):
     """视频预测线程"""
@@ -56,16 +58,13 @@ class VideoDetectionPage(QWidget):
         self.cap = None
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_frame)
-        self.model = None
-        self.transform = None
-        self.device = None
+        self.detection_core = DetectionCore()  # 创建检测核心实例
         self.emotion_stats = {emotion: 0 for emotion in EMOTION_CLASSES}
         self.is_processing = False
         self.last_prediction_time = 0
         self.frame_count = 0
         self.last_fps_time = 0
         self.current_fps = 0
-        self.face_net = None
         self.face_results = []
         self.face_emotion_buffers = []
         self.face_threads = []
@@ -204,9 +203,9 @@ class VideoDetectionPage(QWidget):
         # 表情统计折线图
         graph_title = QLabel("📈 表情分布")
         graph_title.setStyleSheet("""
-            font-size: 16px; 
+            font-size: 18px; 
             font-weight: bold; 
-            color: #e2e8f0;
+            color: #2dd4bf;
             padding: 10px 0;
         """)
         layout.addWidget(graph_title)
@@ -258,7 +257,7 @@ class VideoDetectionPage(QWidget):
         panel = QFrame()
         panel.setStyleSheet("""
             QFrame {
-                background: #0f172a;
+                background: #1e293b;
                 border-radius: 12px;
                 border: 2px solid #334155;
             }
@@ -273,7 +272,12 @@ class VideoDetectionPage(QWidget):
         title_layout.setSpacing(10)
         
         title_label = QLabel("🎬 视频画面")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #2dd4bf; padding: 10px 0;")
+        title_label.setStyleSheet("""
+            font-size: 18px;
+            font-weight: bold;
+            color: #2dd4bf;
+            padding: 10px 0;
+        """)
         title_layout.addWidget(title_label)
         
         self.fps_label = QLabel("帧率：-- FPS")
@@ -332,16 +336,23 @@ class VideoDetectionPage(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
         
-        self.select_btn = QPushButton("📁 选择视频")
+        self.select_btn = QPushButton("选择视频")
+        # 设置图标
+        select_icon_path = os.path.join(APP_DIR, 'icons', '选择视频.png')
+        if os.path.exists(select_icon_path):
+            select_icon = QIcon(select_icon_path)
+            self.select_btn.setIcon(select_icon)
+            self.select_btn.setIconSize(QSize(24, 24))
         self.select_btn.setStyleSheet("""
             QPushButton {
                 background: #2dd4bf;
                 color: white;
                 font-size: 16px;
-                padding: 15px;
+                padding: 15px 15px 15px 40px;
                 border-radius: 10px;
                 font-weight: bold;
                 border: none;
+                text-align: center;
             }
             QPushButton:hover {
                 background: #14b8a6;
@@ -351,16 +362,23 @@ class VideoDetectionPage(QWidget):
         self.select_btn.clicked.connect(self.select_video)
         btn_layout.addWidget(self.select_btn)
         
-        self.play_btn = QPushButton("▶️ 播放")
+        self.play_btn = QPushButton("播放")
+        # 设置图标
+        play_icon_path = os.path.join(APP_DIR, 'icons', '播放.png')
+        if os.path.exists(play_icon_path):
+            play_icon = QIcon(play_icon_path)
+            self.play_btn.setIcon(play_icon)
+            self.play_btn.setIconSize(QSize(24, 24))
         self.play_btn.setStyleSheet("""
             QPushButton {
                 background: #3b82f6;
                 color: white;
                 font-size: 16px;
-                padding: 15px;
+                padding: 15px 15px 15px 40px;
                 border-radius: 10px;
                 font-weight: bold;
                 border: none;
+                text-align: center;
             }
             QPushButton:hover {
                 background: #2563eb;
@@ -374,16 +392,23 @@ class VideoDetectionPage(QWidget):
         self.play_btn.clicked.connect(self.toggle_play)
         btn_layout.addWidget(self.play_btn)
         
-        self.capture_btn = QPushButton("📷 拍照")
+        self.capture_btn = QPushButton("拍照")
+        # 设置图标
+        capture_icon_path = os.path.join(APP_DIR, 'icons', '拍照.png')
+        if os.path.exists(capture_icon_path):
+            capture_icon = QIcon(capture_icon_path)
+            self.capture_btn.setIcon(capture_icon)
+            self.capture_btn.setIconSize(QSize(24, 24))
         self.capture_btn.setStyleSheet("""
             QPushButton {
                 background: #f59e0b;
                 color: white;
                 font-size: 16px;
-                padding: 15px;
+                padding: 15px 15px 15px 40px;
                 border-radius: 10px;
                 font-weight: bold;
                 border: none;
+                text-align: center;
             }
             QPushButton:hover {
                 background: #d97706;
@@ -403,72 +428,7 @@ class VideoDetectionPage(QWidget):
     
     def load_model(self):
         """加载模型 - 与实时检测相同"""
-        # 加载表情识别模型
-        try:
-            # 自动检测并使用CUDA（如果可用）
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            print(f"使用设备: {self.device}")
-            
-            # 尝试加载模型 - 处理不同的模型结构
-            from torchvision.models import MobileNet_V2_Weights
-            self.model = models.mobilenet_v2(weights=MobileNet_V2_Weights.DEFAULT)
-            # 修改模型以使用1通道输入（灰度图）
-            self.model.features[0][0] = nn.Conv2d(1, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
-            self.model.classifier[1] = nn.Linear(self.model.last_channel, 7)
-            
-            checkpoint = torch.load(MODEL_PATH, map_location=self.device, weights_only=True)
-            
-            # 检查模型结构
-            if 'model_state_dict' in checkpoint:
-                # 新格式
-                state_dict = checkpoint['model_state_dict']
-            else:
-                # 旧格式
-                state_dict = checkpoint
-            
-            # 尝试加载状态字典
-            try:
-                self.model.load_state_dict(state_dict)
-            except Exception as e:
-                # 如果失败，尝试处理 backbone 前缀
-                print(f"尝试处理模型结构...")
-                new_state_dict = {}
-                for k, v in state_dict.items():
-                    # 移除 backbone 前缀
-                    if k.startswith('backbone.'):
-                        new_k = k[9:]  # 移除 'backbone.'
-                        new_state_dict[new_k] = v
-                    else:
-                        new_state_dict[k] = v
-                self.model.load_state_dict(new_state_dict)
-            
-            self.model.to(self.device)
-            self.model.eval()
-            
-            self.transform = transforms.Compose([
-                transforms.Grayscale(num_output_channels=1),
-                transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5], std=[0.5])
-            ])
-            
-            print("✅ 表情识别模型加载成功")
-        except Exception as e:
-            print(f"❌ 表情识别模型加载失败：{e}")
-            import traceback
-            traceback.print_exc()
-        
-        # 加载人脸检测模型（单独的try块）
-        try:
-            self.face_net = cv2.dnn.readNetFromCaffe(
-                'App/models/deploy.prototxt',
-                'App/models/res10_300x300_ssd_iter_140000_fp16.caffemodel'
-            )
-            print("✅ 人脸检测模型加载成功")
-        except Exception as e:
-            print(f"❌ 人脸检测模型加载失败：{e}")
-            import traceback
-            traceback.print_exc()
+        self.detection_core.load_model()
     
     def select_video(self):
         """选择视频文件"""
@@ -527,13 +487,25 @@ class VideoDetectionPage(QWidget):
             return
         
         self.is_playing = True
-        self.play_btn.setText("⏸️ 暂停")
+        self.play_btn.setText("暂停")
+        # 设置图标
+        pause_icon_path = os.path.join(APP_DIR, 'icons', '暂停.png')
+        if os.path.exists(pause_icon_path):
+            pause_icon = QIcon(pause_icon_path)
+            self.play_btn.setIcon(pause_icon)
+            self.play_btn.setIconSize(QSize(24, 24))
         self.timer.start(30)
     
     def pause_video(self):
         """暂停视频"""
         self.is_playing = False
-        self.play_btn.setText("▶️ 播放")
+        self.play_btn.setText("播放")
+        # 设置图标
+        play_icon_path = os.path.join(APP_DIR, 'icons', '播放.png')
+        if os.path.exists(play_icon_path):
+            play_icon = QIcon(play_icon_path)
+            self.play_btn.setIcon(play_icon)
+            self.play_btn.setIconSize(QSize(24, 24))
         self.timer.stop()
     
     def seek_video(self):
@@ -565,19 +537,12 @@ class VideoDetectionPage(QWidget):
         
         # 使用Caffe模型进行人脸检测
         faces = []
-        if ENABLE_DETECTION and self.face_net is not None:
+        if ENABLE_DETECTION:
             try:
-                h, w = frame.shape[:2]
-                blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
-                self.face_net.setInput(blob)
-                detections = self.face_net.forward()
-                
-                for i in range(detections.shape[2]):
-                    confidence = detections[0, 0, i, 2]
-                    if confidence > 0.5:
-                        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                        (x, y, x1, y1) = box.astype("int")
-                        faces.append((x, y, x1-x, y1-y))
+                # 加载人脸检测模型
+                self.detection_core.load_face_net()
+                # 检测人脸
+                faces = self.detection_core.detect_faces(frame)
             except Exception as e:
                 print(f"人脸检测错误：{e}")
         
@@ -598,14 +563,14 @@ class VideoDetectionPage(QWidget):
             for idx, (x, y, w, h) in enumerate(faces[:MAX_FACES]):
                 try:
                     # 只有在表情识别模型加载成功时才进行表情识别
-                    if self.model and self.transform:
+                    if self.detection_core.model and self.detection_core.transform:
                         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                         face_roi = gray[y:y+h, x:x+w]
                         face_resized = cv2.resize(face_roi, (96, 96))
                         face_pil = Image.fromarray(face_resized)
                         
                         thread = VideoPredictionThread(
-                            face_pil, self.transform, self.model, self.device, idx
+                            face_pil, self.detection_core.transform, self.detection_core.model, self.detection_core.device, idx
                         )
                         thread.result_ready.connect(self.on_prediction_ready)
                         thread.finished.connect(lambda t=thread: self.on_thread_finished(t))
@@ -625,40 +590,10 @@ class VideoDetectionPage(QWidget):
         # 绘制框和标签
         if SHOW_BOX or (SHOW_LABEL and self.face_results):
             if SHOW_BOX:
-                for idx, (x, y, w, h) in enumerate(faces[:MAX_FACES]):
-                    if idx < len(self.face_results):
-                        color = EMOTION_COLORS.get(self.face_results[idx].get('emotion', 'neutral'), (0, 255, 0))
-                    else:
-                        color = EMOTION_COLORS.get('neutral', (0, 255, 0))
-                    
-                    cv2.rectangle(frame, (x, y), (x+w, y+h), color, 3)
-                    cv2.rectangle(frame, (x+1, y+1), (x+w-1, y+h-1), (255, 255, 255), 1)
+                frame = self.detection_core.draw_four_corners(frame, faces[:MAX_FACES], self.face_results)
             
             if SHOW_LABEL and self.face_results:
-                for idx, (x, y, w, h) in enumerate(faces[:MAX_FACES]):
-                    if idx < len(self.face_results):
-                        result = self.face_results[idx]
-                        emotion = result.get('emotion', 'neutral')
-                        chinese_text = f"👤{idx+1} {EMOTION_CHINESE.get(emotion, 'neutral')}: {result.get('confidence', 0):.2f}"
-                        
-                        color = EMOTION_COLORS.get(emotion, (0, 255, 0))
-                        
-                        frame_pil_full = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                        draw = ImageDraw.Draw(frame_pil_full)
-                        
-                        try:
-                            font = ImageFont.truetype("msyhbd.ttc", 24, encoding="utf-8")
-                        except:
-                            try:
-                                font = ImageFont.truetype("simhei.ttf", 24, encoding="utf-8")
-                            except:
-                                font = ImageFont.load_default()
-                        
-                        shadow_offset = 2
-                        draw.text((x + shadow_offset, y - 30 + shadow_offset), chinese_text, font=font, fill=(0, 0, 0))
-                        draw.text((x, y - 30), chinese_text, font=font, fill=(color[2], color[1], color[0]))
-                        
-                        frame = cv2.cvtColor(np.array(frame_pil_full), cv2.COLOR_RGB2BGR)
+                frame = self.detection_core.draw_labels(frame, faces[:MAX_FACES], self.face_results)
         
         # 计算帧率
         self.frame_count += 1
@@ -874,7 +809,7 @@ class VideoDetectionPage(QWidget):
                     from PyQt6.QtWidgets import QMessageBox
                     msg = QMessageBox()
                     msg.setWindowTitle("保存成功")
-                    msg.setText("照片已成功保存！")
+                    msg.setText(f"照片已成功保存！\n\n保存目录：{save_dir}\n图片名：{filename}")
                     msg.setIcon(QMessageBox.Icon.Information)
                     msg.setStandardButtons(QMessageBox.StandardButton.Ok)
                     msg.exec()

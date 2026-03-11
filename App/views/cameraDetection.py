@@ -3,8 +3,8 @@
 """
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QLabel, 
                              QPushButton, QFrame, QGraphicsOpacityEffect)
-from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve
-from PyQt6.QtGui import QFont, QImage, QPixmap
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve, QSize
+from PyQt6.QtGui import QFont, QImage, QPixmap, QIcon
 import cv2
 import torch
 import torch.nn as nn
@@ -13,41 +13,11 @@ from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 from collections import deque
 import pyqtgraph as pg
+import os
 # 只导入常量配置，动态配置在运行时获取
-from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE
+from App.code.config import MODEL_PATH, IMAGE_SIZE, EMOTION_CLASSES, EMOTION_COLORS, EMOTION_CHINESE, APP_DIR
 from App.code.settings_manager import settings_manager
-
-class PredictionThread(QThread):
-    """预测线程 - 优化版本"""
-    result_ready = pyqtSignal(str, float)
-    
-    def __init__(self, face_image, transform, model, device, face_idx):
-        super().__init__()
-        self.face_image = face_image
-        self.transform = transform
-        self.model = model
-        self.device = device
-        self.face_idx = face_idx
-        self.emotion_buffer = deque(maxlen=5)  # 每个人脸独立的缓冲区
-    
-    def run(self):
-        try:
-            face_tensor = self.transform(self.face_image).unsqueeze(0).to(self.device)
-            
-            with torch.no_grad():
-                outputs = self.model(face_tensor)
-                probs = torch.nn.functional.softmax(outputs, dim=1)
-                conf, pred = torch.max(probs, 1)
-                emotion = EMOTION_CLASSES[pred.item()]
-                confidence = conf.item()
-            
-            self.emotion_buffer.append(emotion)
-            smooth_emotion = max(set(self.emotion_buffer), key=list(self.emotion_buffer).count)
-            
-            self.result_ready.emit(smooth_emotion, confidence)
-        except Exception as e:
-            print(f"预测错误：{e}")
-            self.result_ready.emit('neutral', 0.0)
+from App.code.detection_core import DetectionCore, PredictionThread
 
 class CameraDetectionPage(QWidget):
     """摄像头检测页面"""
@@ -56,9 +26,7 @@ class CameraDetectionPage(QWidget):
         super().__init__()
         self.cap = None
         self.timer = QTimer()
-        self.model = None
-        self.transform = None
-        self.device = None
+        self.detection_core = DetectionCore()  # 创建检测核心实例
         self.emotion_buffer = deque(maxlen=5)
         self.current_emotion = "未检测"
         self.current_confidence = 0.0
@@ -70,14 +38,13 @@ class CameraDetectionPage(QWidget):
         self.frame_count = 0
         self.last_fps_time = 0
         self.current_fps = 0
-        # 人脸检测模型
-        self.face_net = None
         # 多个人脸识别相关
         self.face_results = []  # 存储每个人脸的识别结果
         self.face_emotion_buffers = []  # 存储每个人脸的表情缓冲区
         self.face_threads = []  # 存储人脸识别线程
         self.init_ui()
         self.connect_settings_signals()
+        self.load_model()
     
     def connect_settings_signals(self):
         """连接设置变更信号"""
@@ -233,9 +200,9 @@ class CameraDetectionPage(QWidget):
         # 表情统计折线图
         graph_title = QLabel("📈 表情分布")
         graph_title.setStyleSheet("""
-            font-size: 16px; 
+            font-size: 18px; 
             font-weight: bold; 
-            color: #e2e8f0;
+            color: #2dd4bf;
             padding: 10px 0;
         """)
         layout.addWidget(graph_title)
@@ -299,7 +266,7 @@ class CameraDetectionPage(QWidget):
         panel = QFrame()
         panel.setStyleSheet("""
             QFrame {
-                background: #0f172a;
+                background: #1e293b;
                 border-radius: 12px;
                 border: 2px solid #334155;
             }
@@ -314,7 +281,12 @@ class CameraDetectionPage(QWidget):
         title_layout.setSpacing(10)
         
         title_label = QLabel("🎥 摄像头画面")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #2dd4bf; padding: 10px 0;")
+        title_label.setStyleSheet("""
+            font-size: 18px;
+            font-weight: bold;
+            color: #2dd4bf;
+            padding: 10px 0;
+        """)
         title_layout.addWidget(title_label)
         
         self.fps_label = QLabel("帧率：-- FPS")
@@ -350,16 +322,23 @@ class CameraDetectionPage(QWidget):
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(10)
         
-        self.start_btn = QPushButton("▶️ 启动摄像头")
+        self.start_btn = QPushButton("启动摄像头")
+        # 设置图标
+        start_icon_path = os.path.join(APP_DIR, 'icons', '启动摄像头.png')
+        if os.path.exists(start_icon_path):
+            start_icon = QIcon(start_icon_path)
+            self.start_btn.setIcon(start_icon)
+            self.start_btn.setIconSize(QSize(24, 24))
         self.start_btn.setStyleSheet("""
             QPushButton {
                 background: #2dd4bf;
                 color: white;
                 font-size: 16px;
-                padding: 15px;
+                padding: 15px 15px 15px 40px;
                 border-radius: 10px;
                 font-weight: bold;
                 border: none;
+                text-align: center;
             }
             QPushButton:hover {
                 background: #14b8a6;
@@ -373,16 +352,23 @@ class CameraDetectionPage(QWidget):
         btn_layout.addWidget(self.start_btn)
         
         # 拍照按钮
-        self.capture_btn = QPushButton("📷 拍照")
+        self.capture_btn = QPushButton("拍照")
+        # 设置图标
+        capture_icon_path = os.path.join(APP_DIR, 'icons', '拍照.png')
+        if os.path.exists(capture_icon_path):
+            capture_icon = QIcon(capture_icon_path)
+            self.capture_btn.setIcon(capture_icon)
+            self.capture_btn.setIconSize(QSize(24, 24))
         self.capture_btn.setStyleSheet("""
             QPushButton {
                 background: #3b82f6;
                 color: white;
                 font-size: 16px;
-                padding: 15px;
+                padding: 15px 15px 15px 40px;
                 border-radius: 10px;
                 font-weight: bold;
                 border: none;
+                text-align: center;
             }
             QPushButton:hover {
                 background: #2563eb;
@@ -402,39 +388,7 @@ class CameraDetectionPage(QWidget):
     
     def load_model(self):
         """加载模型"""
-        try:
-            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-            print(f"使用设备：{self.device}")
-            
-            checkpoint = torch.load(MODEL_PATH, map_location=self.device)
-            
-            class EmotionClassifier(nn.Module):
-                def __init__(self, num_classes=7):
-                    super().__init__()
-                    from torchvision.models import MobileNet_V2_Weights
-                    self.backbone = models.mobilenet_v2(weights=MobileNet_V2_Weights.DEFAULT)
-                    num_features = self.backbone.classifier[1].in_features
-                    self.backbone.features[0][0] = nn.Conv2d(1, 32, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False)
-                    self.backbone.classifier = nn.Sequential(nn.Dropout(p=0.2), nn.Linear(num_features, num_classes))
-                def forward(self, x):
-                    return self.backbone(x)
-            
-            self.model = EmotionClassifier(num_classes=7).to(self.device)
-            self.model.load_state_dict(checkpoint['model_state_dict'])
-            self.model.eval()
-            
-            self.transform = transforms.Compose([
-                transforms.Grayscale(num_output_channels=1),
-                transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5], std=[0.5])
-            ])
-            
-            print("✅ 模型加载成功")
-        except Exception as e:
-            print(f"❌ 模型加载失败：{e}")
-            import traceback
-            traceback.print_exc()
+        self.detection_core.load_model()
     
     def toggle_camera(self):
         """切换摄像头状态"""
@@ -446,7 +400,7 @@ class CameraDetectionPage(QWidget):
     def start_camera(self):
         """启动摄像头"""
         try:
-            if not self.model:
+            if not self.detection_core.model:
                 print("❌ 模型未加载")
                 return
             
@@ -467,35 +421,30 @@ class CameraDetectionPage(QWidget):
             self.cap.set(cv2.CAP_PROP_FPS, FRAME_RATE)
             
             # 预加载人脸检测模型
-            if not hasattr(self, 'face_net') or self.face_net is None:
-                print("🔍 加载人脸检测模型...")
-                self.face_net = cv2.dnn.readNetFromCaffe(
-                    'App/models/deploy.prototxt',
-                    'App/models/res10_300x300_ssd_iter_140000_fp16.caffemodel'
-                )
-                # 优化模型运行
-                if cv2.cuda.getCudaEnabledDeviceCount() > 0:
-                    self.face_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-                    self.face_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
-                else:
-                    self.face_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_OPENCV)
-                    self.face_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CPU)
+            self.detection_core.load_face_net()
             
             # 连接定时器
             self.timer.timeout.connect(self.update_frame)
             self.timer.start(1000 // FRAME_RATE)
             
             # 更新按钮状态
-            self.start_btn.setText("⏹️ 停止摄像头")
+            self.start_btn.setText("停止摄像头")
+            # 设置图标
+            stop_icon_path = os.path.join(APP_DIR, 'icons', '停止摄像头.png')
+            if os.path.exists(stop_icon_path):
+                stop_icon = QIcon(stop_icon_path)
+                self.start_btn.setIcon(stop_icon)
+                self.start_btn.setIconSize(QSize(24, 24))
             self.start_btn.setStyleSheet("""
                 QPushButton {
                     background: #ef4444;
                     color: white;
                     font-size: 16px;
-                    padding: 15px;
+                    padding: 15px 15px 15px 40px;
                     border-radius: 10px;
                     font-weight: bold;
                     border: none;
+                    text-align: center;
                 }
                 QPushButton:hover {
                     background: #dc2626;
@@ -530,23 +479,8 @@ class CameraDetectionPage(QWidget):
         
         # 快速人脸检测
         faces = []
-        if ENABLE_DETECTION and self.face_net is not None:
-            # 调整图像尺寸用于人脸检测 - 使用模型要求的300x300尺寸
-            h, w = frame.shape[:2]
-            blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0))
-            self.face_net.setInput(blob)
-            detections = self.face_net.forward()
-            
-            # 解析检测结果
-            for i in range(min(10, detections.shape[2])):  # 限制检测数量
-                confidence = detections[0, 0, i, 2]
-                if confidence > 0.6:  # 提高置信度阈值减少误检测
-                    box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-                    (x, y, x1, y1) = box.astype("int")
-                    # 确保边界有效
-                    x, y = max(0, x), max(0, y)
-                    w_box, h_box = max(10, x1-x), max(10, y1-y)
-                    faces.append((x, y, w_box, h_box))
+        if ENABLE_DETECTION:
+            faces = self.detection_core.detect_faces(frame)
         
         # 限制检测频率，每300ms检测一次
         import time
@@ -579,7 +513,7 @@ class CameraDetectionPage(QWidget):
                     
                     # 创建新的线程
                     thread = PredictionThread(
-                        face_pil, self.transform, self.model, self.device, idx
+                        face_pil, self.detection_core.transform, self.detection_core.model, self.detection_core.device, idx
                     )
                     thread.result_ready.connect(lambda emotion, confidence, face_idx=idx: self.on_prediction_ready(emotion, confidence, face_idx))
                     thread.finished.connect(lambda t=thread: self.on_thread_finished(t))
@@ -603,48 +537,10 @@ class CameraDetectionPage(QWidget):
         # 优化：只在需要时才绘制框和标签
         if SHOW_BOX or (SHOW_LABEL and self.face_results):
             if SHOW_BOX:
-                for idx, (x, y, w_box, h_box) in enumerate(faces[:MAX_FACES]):
-                    # 获取对应人脸的颜色
-                    if idx < len(self.face_results):
-                        color = EMOTION_COLORS.get(self.face_results[idx].get('emotion', 'neutral'), (0, 255, 0))
-                    else:
-                        color = EMOTION_COLORS.get('neutral', (0, 255, 0))
-                    
-                    # 绘制更清晰的矩形框，增加线条粗细和透明度效果
-                    cv2.rectangle(frame, (x, y), (x+w_box, y+h_box), color, 3)  # 增加线条粗细
-                    # 添加内层细线以增加清晰度
-                    cv2.rectangle(frame, (x+1, y+1), (x+w_box-1, y+h_box-1), (255, 255, 255), 1)
+                frame = self.detection_core.draw_four_corners(frame, faces[:MAX_FACES], self.face_results)
             
             if SHOW_LABEL and self.face_results:
-                for idx, (x, y, w_box, h_box) in enumerate(faces[:MAX_FACES]):
-                    if idx < len(self.face_results):
-                        result = self.face_results[idx]
-                        emotion = result.get('emotion', 'neutral')
-                        chinese_text = f"👤{idx+1} {EMOTION_CHINESE.get(emotion, 'neutral')}: {result.get('confidence', 0):.2f}"
-                        
-                        # 获取对应的表情颜色
-                        color = EMOTION_COLORS.get(emotion, (0, 255, 0))
-                        
-                        # 使用PIL进行高质量文字渲染
-                        frame_pil_full = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                        draw = ImageDraw.Draw(frame_pil_full)
-                        
-                        try:
-                            # 尝试使用高质量字体
-                            font = ImageFont.truetype("msyhbd.ttc", 18, encoding="utf-8")  # 减小字体
-                        except:
-                            try:
-                                font = ImageFont.truetype("simhei.ttf", 18, encoding="utf-8")  # 减小字体
-                            except:
-                                # 如果找不到字体，使用默认字体
-                                font = ImageFont.load_default()
-                        
-                        # 绘制文字阴影以提高清晰度
-                        shadow_offset = 2
-                        draw.text((x + shadow_offset, y - 35 + shadow_offset), chinese_text, font=font, fill=(0, 0, 0))  # 阴影
-                        draw.text((x, y - 35), chinese_text, font=font, fill=(color[2], color[1], color[0]))  # 主文字（转换为RGB）
-                        
-                        frame = cv2.cvtColor(np.array(frame_pil_full), cv2.COLOR_RGB2BGR)
+                frame = self.detection_core.draw_labels(frame, faces[:MAX_FACES], self.face_results)
         
         # 快速转换为QImage
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -895,7 +791,7 @@ class CameraDetectionPage(QWidget):
                     from PyQt6.QtWidgets import QMessageBox
                     msg = QMessageBox()
                     msg.setWindowTitle("保存成功")
-                    msg.setText("照片已成功保存！")
+                    msg.setText(f"照片已成功保存！\n\n保存目录：{capture_dir}\n图片名：{filename}")
                     msg.setIcon(QMessageBox.Icon.Information)
                     msg.setStandardButtons(QMessageBox.StandardButton.Ok)
                     msg.exec()
@@ -937,16 +833,23 @@ class CameraDetectionPage(QWidget):
         self.video_label.setText("点击按钮启动摄像头")
         
         # 重置按钮
-        self.start_btn.setText("▶️ 启动摄像头")
+        self.start_btn.setText("启动摄像头")
+        # 设置图标
+        start_icon_path = os.path.join(APP_DIR, 'icons', '启动摄像头.png')
+        if os.path.exists(start_icon_path):
+            start_icon = QIcon(start_icon_path)
+            self.start_btn.setIcon(start_icon)
+            self.start_btn.setIconSize(QSize(24, 24))
         self.start_btn.setStyleSheet("""
             QPushButton {
                 background: #2dd4bf;
                 color: white;
                 font-size: 16px;
-                padding: 15px 15px;
+                padding: 15px 15px 15px 40px;
                 border-radius: 10px;
                 font-weight: bold;
                 border: none;
+                text-align: center;
             }
             QPushButton:hover {
                 background: #14b8a6;

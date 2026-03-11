@@ -5,8 +5,10 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QTableWidget, QTableWidgetItem, QPushButton, 
                              QFrame, QLineEdit, QDialog, QFormLayout, 
                              QComboBox, QMessageBox, QInputDialog)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtGui import QFont, QColor, QIcon
+import os
+from App.code.config import APP_DIR
 from App.database.user import UserDatabase
 
 class UserManagementPage(QWidget):
@@ -20,6 +22,9 @@ class UserManagementPage(QWidget):
     
     def init_ui(self):
         """初始化界面"""
+        # 设置页面背景颜色
+        self.setStyleSheet("background: #1e293b;")
+        
         layout = QVBoxLayout()
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(15)
@@ -31,8 +36,14 @@ class UserManagementPage(QWidget):
         button_layout.setSpacing(15)
         
         # 添加用户按钮
-        add_btn = QPushButton("➕ 添加用户")
-        add_btn.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Medium))
+        add_btn = QPushButton("添加用户")
+        # 设置图标
+        add_icon_path = os.path.join(APP_DIR, 'icons', '添加用户.png')
+        if os.path.exists(add_icon_path):
+            add_icon = QIcon(add_icon_path)
+            add_btn.setIcon(add_icon)
+            add_btn.setIconSize(QSize(20, 20))
+        add_btn.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
         add_btn.setFixedHeight(50)
         add_btn.setMinimumWidth(160)
         add_btn.setStyleSheet("""
@@ -55,8 +66,14 @@ class UserManagementPage(QWidget):
         button_layout.addWidget(add_btn)
         
         # 刷新按钮
-        refresh_btn = QPushButton("🔄 刷新")
-        refresh_btn.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Medium))
+        refresh_btn = QPushButton("刷新")
+        # 设置图标
+        refresh_icon_path = os.path.join(APP_DIR, 'icons', '刷新.png')
+        if os.path.exists(refresh_icon_path):
+            refresh_icon = QIcon(refresh_icon_path)
+            refresh_btn.setIcon(refresh_icon)
+            refresh_btn.setIconSize(QSize(20, 20))
+        refresh_btn.setFont(QFont("Microsoft YaHei", 14, QFont.Weight.Bold))
         refresh_btn.setFixedHeight(50)
         refresh_btn.setMinimumWidth(130)
         refresh_btn.setStyleSheet("""

@@ -4,12 +4,12 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                              QTableWidget, QTableWidgetItem, QPushButton, 
                              QFrame, QDateEdit, QComboBox, QGridLayout)
-from PyQt6.QtCore import Qt, QDate
-from PyQt6.QtGui import QFont, QColor
+from PyQt6.QtCore import Qt, QDate, QSize
+from PyQt6.QtGui import QFont, QColor, QIcon
 import sqlite3
 import os
 from datetime import datetime
-from App.code.config import EMOTION_CHINESE
+from App.code.config import EMOTION_CHINESE, APP_DIR
 
 class StatisticsPage(QWidget):
     """数据统计页面"""
@@ -22,6 +22,9 @@ class StatisticsPage(QWidget):
     
     def init_ui(self):
         """初始化界面"""
+        # 设置页面背景颜色
+        self.setStyleSheet("background: #1e293b;")
+        
         layout = QVBoxLayout()
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(10)
@@ -36,14 +39,14 @@ class StatisticsPage(QWidget):
         
         # 日期筛选
         date_label = QLabel("日期范围:")
-        date_label.setFont(QFont("Microsoft YaHei", 12))
+        date_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         date_label.setStyleSheet("color: #94a3b8;")
         filter_layout.addWidget(date_label, 0, 0, 1, 1)
         
         self.start_date = QDateEdit()
         self.start_date.setDate(QDate.currentDate().addDays(-7))
         self.start_date.setCalendarPopup(True)
-        self.start_date.setFont(QFont("Microsoft YaHei", 12))
+        self.start_date.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.start_date.setFixedHeight(30)
         self.start_date.setMinimumWidth(180)
         self.start_date.setStyleSheet("""
@@ -61,14 +64,14 @@ class StatisticsPage(QWidget):
         filter_layout.addWidget(self.start_date, 0, 1, 1, 1)
         
         to_label = QLabel("至")
-        to_label.setFont(QFont("Microsoft YaHei", 12))
+        to_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         to_label.setStyleSheet("color: #94a3b8;")
         filter_layout.addWidget(to_label, 0, 2, 1, 1)
         
         self.end_date = QDateEdit()
         self.end_date.setDate(QDate.currentDate())
         self.end_date.setCalendarPopup(True)
-        self.end_date.setFont(QFont("Microsoft YaHei", 12))
+        self.end_date.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.end_date.setFixedHeight(30)
         self.end_date.setMinimumWidth(180)
         self.end_date.setStyleSheet("""
@@ -87,13 +90,13 @@ class StatisticsPage(QWidget):
         
         # 来源筛选
         source_label = QLabel("来源:")
-        source_label.setFont(QFont("Microsoft YaHei", 12))
+        source_label.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         source_label.setStyleSheet("color: #94a3b8;")
         filter_layout.addWidget(source_label, 1, 0, 1, 1)
         
         self.source_combo = QComboBox()
         self.source_combo.addItems(["全部", "摄像头检测", "图片检测", "批量图片检测", "视频检测"])
-        self.source_combo.setFont(QFont("Microsoft YaHei", 12))
+        self.source_combo.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         self.source_combo.setFixedHeight(30)
         self.source_combo.setMinimumWidth(380)
         self.source_combo.setStyleSheet("""
@@ -123,8 +126,14 @@ class StatisticsPage(QWidget):
         button_layout.setSpacing(15)
         
         # 搜索按钮
-        search_btn = QPushButton("🔍 搜索")
-        search_btn.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Medium))
+        search_btn = QPushButton("搜索")
+        # 设置图标
+        search_icon_path = os.path.join(APP_DIR, 'icons', '搜索.png')
+        if os.path.exists(search_icon_path):
+            search_icon = QIcon(search_icon_path)
+            search_btn.setIcon(search_icon)
+            search_btn.setIconSize(QSize(16, 16))
+        search_btn.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         search_btn.setFixedHeight(30)
         search_btn.setMinimumWidth(120)
         search_btn.setStyleSheet("""
@@ -147,8 +156,14 @@ class StatisticsPage(QWidget):
         button_layout.addWidget(search_btn)
         
         # 刷新按钮
-        refresh_btn = QPushButton("🔄 刷新")
-        refresh_btn.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Medium))
+        refresh_btn = QPushButton("刷新")
+        # 设置图标
+        refresh_icon_path = os.path.join(APP_DIR, 'icons', '刷新.png')
+        if os.path.exists(refresh_icon_path):
+            refresh_icon = QIcon(refresh_icon_path)
+            refresh_btn.setIcon(refresh_icon)
+            refresh_btn.setIconSize(QSize(16, 16))
+        refresh_btn.setFont(QFont("Microsoft YaHei", 12, QFont.Weight.Bold))
         refresh_btn.setFixedHeight(30)
         refresh_btn.setMinimumWidth(120)
         refresh_btn.setStyleSheet("""
