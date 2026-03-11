@@ -764,34 +764,18 @@ class VideoDetectionPage(QWidget):
                     filepath = os.path.join(save_dir, filename)
                     
                     # 应用与显示相同的处理逻辑
-                    from App.code.config import ENABLE_DETECTION, SHOW_BOX, SHOW_LABEL
+                    from App.code.config import ENABLE_DETECTION, SHOW_BOX, SHOW_LABEL, MAX_FACES
                     
-                    if ENABLE_DETECTION and self.face_results:
-                        for idx, result in enumerate(self.face_results):
-                            emotion = result.get('emotion', 'neutral')
-                            color = EMOTION_COLORS.get(emotion, (0, 255, 0))
-                            
-                            if SHOW_BOX:
-                                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                                faces = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml').detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
-                                for (x, y, w, h) in faces:
-                                    cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-                            
-                            if SHOW_LABEL:
-                                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                                faces = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml').detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
-                                for (x, y, w, h) in faces:
-                                    chinese_text = f"{EMOTION_CHINESE.get(emotion, emotion)}: {result.get('confidence', 0):.2f}"
-                                    frame_pil_full = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                                    draw = ImageDraw.Draw(frame_pil_full)
-                                    
-                                    try:
-                                        font = ImageFont.truetype("msyhbd.ttc", 20, encoding="utf-8")
-                                    except:
-                                        font = ImageFont.truetype("simhei.ttf", 20, encoding="utf-8")
-                                    
-                                    draw.text((x, y - 30), chinese_text, font=font, fill=(color[2], color[1], color[0]))
-                                    frame = cv2.cvtColor(np.array(frame_pil_full), cv2.COLOR_RGB2BGR)
+                    # 使用与实时检测相同的人脸检测方法
+                    faces = self.detection_core.detect_faces(frame)
+                    
+                    # 应用与显示相同的处理逻辑
+                    if SHOW_BOX or (SHOW_LABEL and self.face_results):
+                        if SHOW_BOX:
+                            frame = self.detection_core.draw_four_corners(frame, faces[:MAX_FACES], self.face_results)
+                        
+                        if SHOW_LABEL and self.face_results:
+                            frame = self.detection_core.draw_labels(frame, faces[:MAX_FACES], self.face_results)
                     
                     cv2.imwrite(filepath, frame)
                     print(f"✅ 照片已保存：{filepath}")

@@ -62,11 +62,11 @@ python App/run.py
 默认管理员账号：root
 默认密码：123456
 
-!\[登录界面]\(App/InterFaceFunctionImage/登录界面.png null)
+![登录界面](App/InterFaceFunctionImage/login.png)
 
 ### 注册界面
 
-!\[注册界面]\(App/InterFaceFunctionImage/注册界面.png null)
+![注册界面](App/InterFaceFunctionImage/register.png)
 
 ### 检测模式
 
@@ -77,7 +77,7 @@ python App/run.py
 - 点击"拍照"按钮可保存当前检测结果
 - 系统会根据检测到的表情自动播放适合的音乐
 
-!\[摄像头检测]\(App/InterFaceFunctionImage/摄像头检测.png null)
+![摄像头检测](App/InterFaceFunctionImage/camera_detection.png)
 
 #### 2. 图片检测
 
@@ -86,7 +86,7 @@ python App/run.py
 - 系统会自动分析图片中的人脸表情
 - 点击"保存图片"按钮可保存检测结果
 
-!\[图片检测]\(App/InterFaceFunctionImage/图片检测.png null)
+![图片检测](App/InterFaceFunctionImage/image_detection.png)
 
 #### 3. 批量图片检测
 
@@ -95,7 +95,7 @@ python App/run.py
 - 选择保存目录
 - 点击"开始检测"按钮开始批量处理
 
-!\[批量图片检测]\(App/InterFaceFunctionImage/批量图片检测.png null)
+![批量图片检测](App/InterFaceFunctionImage/batch_image_detection.png)
 
 #### 4. 视频检测
 
@@ -104,9 +104,9 @@ python App/run.py
 - 系统会播放视频并实时检测表情
 - 点击"拍照"按钮可保存当前帧的检测结果
 
-!\[视频检测]\(App/InterFaceFunctionImage/视频检测.png null)
+![视频检测](App/InterFaceFunctionImage/video_detection.png)
 
-#### 5. 适配音乐
+#### 5. 音乐播放
 
 - 系统会根据检测到的表情自动播放适合的音乐
 - 音乐播放器位于左侧导航栏底部，包含上一曲、播放/暂停、下一曲和静音按钮
@@ -114,7 +114,7 @@ python App/run.py
 - 当表情不变时，音乐会循环播放
 - 点击"静音"按钮可关闭声音
 
-!\[视频音乐]\(App/InterFaceFunctionImage/适配音乐.png null)
+![音乐播放](App/InterFaceFunctionImage/music_adaptation.png)
 
 ### 数据统计
 
@@ -122,7 +122,7 @@ python App/run.py
 - 可按日期范围和来源筛选数据
 - 查看检测统计信息和详细数据表格
 
-!\[数据统计]\(App/InterFaceFunctionImage/数据统计.png null)
+![数据统计](App/InterFaceFunctionImage/statistics.png)
 
 ### 用户管理
 
@@ -130,7 +130,7 @@ python App/run.py
 - 可添加新用户、删除用户、修改用户权限
 - 可将普通用户升级为管理员，或将管理员降级为普通用户
 
-!\[用户管理]\(App/InterFaceFunctionImage/用户管理.png null)
+![用户管理](App/InterFaceFunctionImage/user_management.png)
 
 ### 系统设置
 
@@ -138,7 +138,7 @@ python App/run.py
 - 可配置摄像头参数、检测设置等
 - 可设置音乐文件夹路径
 
-!\[系统设置]\(App/InterFaceFunctionImage/系统设置.png null)
+![系统设置](App/InterFaceFunctionImage/settings.png)
 
 ## 支持的表情
 
@@ -154,13 +154,9 @@ python App/run.py
 
 ### 表情图片
 
-!\[愤怒]\(App/InterFaceFunctionImage/愤怒.png null)
-!\[厌恶]\(App/InterFaceFunctionImage/厌恶.png null)
-!\[恐惧]\(App/InterFaceFunctionImage/恐惧.png null)
-!\[快乐]\(App/InterFaceFunctionImage/快乐.png null)
-!\[平静]\(App/InterFaceFunctionImage/平静.png null)
-!\[悲伤]\(App/InterFaceFunctionImage/悲伤.png null)
-!\[惊讶]\(App/InterFaceFunctionImage/惊讶.png null)
+![愤怒](App/InterFaceFunctionImage/angry.png) ![厌恶](App/InterFaceFunctionImage/disgust.png) ![恐惧](App/InterFaceFunctionImage/fear.png)
+
+![快乐](App/InterFaceFunctionImage/happy.png) ![平静](App/InterFaceFunctionImage/neutral.png) ![悲伤](App/InterFaceFunctionImage/sad.png) ![惊讶](App/InterFaceFunctionImage/surprise.png) 
 
 ## 核心算法
 
@@ -350,8 +346,8 @@ AiFaceApp/
 
 ## 模型说明
 
-- **人脸检测模型**：res10\_300x300\_ssd\_iter\_140000\_fp16.caffemodel
-- **表情识别模型**：pytorch\_final\_3060.pth (基于MobileNetV2)
+- **人脸检测模型**：res10_300x300_ssd_iter_140000_fp16.caffemodel
+- **表情识别模型**：pytorch_final_3060.pth (基于MobileNetV2)
 - **支持的表情**：愤怒、厌恶、恐惧、快乐、平静、悲伤、惊讶
 
 ## 配置说明
@@ -373,7 +369,7 @@ AiFaceApp/
 ## 性能优化
 
 1. **模型量化**：在CPU上使用动态量化，减少模型大小和推理时间
-2. **批处理预测**：实现了batch\_predict\_emotion方法，一次处理多个人脸，提高推理效率
+2. **批处理预测**：实现了batch_predict_emotion方法，一次处理多个人脸，提高推理效率
 3. **单例模式**：实现了DetectionCore的单例模式，确保模型只加载一次，避免重复加载
 4. **多线程处理**：使用QThread在后台执行耗时操作，避免阻塞主线程
 5. **内存管理**：在页面切换时停止摄像头、视频和批量图片检测，释放相关资源

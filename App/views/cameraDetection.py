@@ -806,37 +806,18 @@ class CameraDetectionPage(QWidget):
                     frame = cv2.flip(frame, 1)
                     
                     # 动态获取最新设置
-                    from App.code.config import ENABLE_DETECTION, SHOW_BOX, SHOW_LABEL
+                    from App.code.config import ENABLE_DETECTION, SHOW_BOX, SHOW_LABEL, MAX_FACES
                     
-                    # 确保face_cascade已初始化
-                    if not hasattr(self, 'face_cascade'):
-                        self.face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                    # 使用与实时检测相同的人脸检测方法
+                    faces = self.detection_core.detect_faces(frame)
                     
                     # 应用与显示相同的处理逻辑
-                    color = EMOTION_COLORS.get(self.current_emotion, (0, 255, 0))
-                    
-                    if SHOW_BOX:
-                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                        faces = self.face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
-                        for (x, y, w, h) in faces:
-                            cv2.rectangle(frame, (x, y), (x+w, y+h), color, 2)
-                    
-                    if SHOW_LABEL and self.current_emotion != "未检测":
-                        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                        faces = self.face_cascade.detectMultiScale(gray, 1.1, 5, minSize=(30, 30))
-                        for (x, y, w, h) in faces:
-                            chinese_text = f"{EMOTION_CHINESE.get(self.current_emotion, self.current_emotion)}: {self.current_confidence:.2f}"
-                            frame_pil_full = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-                            draw = ImageDraw.Draw(frame_pil_full)
-                            
-                            try:
-                                font = ImageFont.truetype("msyhbd.ttc", 20, encoding="utf-8")
-                            except:
-                                font = ImageFont.truetype("simhei.ttf", 20, encoding="utf-8")
-                            
-                            draw.text((x, y - 30), chinese_text, font=font, fill=(color[2], color[1], color[0]))
-                            
-                            frame = cv2.cvtColor(np.array(frame_pil_full), cv2.COLOR_RGB2BGR)
+                    if SHOW_BOX or (SHOW_LABEL and self.face_results):
+                        if SHOW_BOX:
+                            frame = self.detection_core.draw_four_corners(frame, faces[:MAX_FACES], self.face_results)
+                        
+                        if SHOW_LABEL and self.face_results:
+                            frame = self.detection_core.draw_labels(frame, faces[:MAX_FACES], self.face_results)
                     
                     # 确保保存目录存在
                     import os
