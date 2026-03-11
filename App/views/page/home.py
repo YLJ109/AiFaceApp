@@ -492,66 +492,69 @@ class HomeWindow(QMainWindow):
     
     def check_emotion_and_play_music(self, manual_play=False):
         """每五秒检测一次情绪并更新音乐"""
-        # 获取当前页面
-        current_index = self.content_stack.currentIndex()
-        current_page = None
-        
-        # 确定当前页面类型
-        if current_index == 0:  # 摄像头检测
-            current_page = self.pages.get('camera')
-        elif current_index == 1:  # 图片检测
-            current_page = self.pages.get('image')
-        elif current_index == 3:  # 视频检测
-            current_page = self.pages.get('video')
-        
-        if not current_page:
-            # 没有检测页面，停止播放音乐
-            if not manual_play:
+        try:
+            # 获取当前页面
+            current_index = self.content_stack.currentIndex()
+            current_page = None
+            
+            # 确定当前页面类型
+            if current_index == 0:  # 摄像头检测
+                current_page = self.pages.get('camera')
+            elif current_index == 1:  # 图片检测
+                current_page = self.pages.get('image')
+            elif current_index == 3:  # 视频检测
+                current_page = self.pages.get('video')
+            
+            if not current_page:
+                # 没有检测页面，停止播放音乐
+                if not manual_play:
+                    self.stop_music()
+                    self.is_playing = False
+                    self.play_pause_btn.setText("播放")
+                    self.music_name_label.setText("未检测")
+                return
+            
+            # 检查页面是否正在检测
+            is_detecting = False
+            if current_index == 0:  # 摄像头检测
+                # 检查摄像头是否打开
+                is_detecting = hasattr(current_page, 'cap') and current_page.cap and current_page.cap.isOpened()
+            elif current_index == 1:  # 图片检测
+                # 图片检测是一次性的，只要有检测结果就认为正在检测
+                is_detecting = hasattr(current_page, 'current_emotion') and current_page.current_emotion and current_page.current_emotion != "未检测"
+            elif current_index == 3:  # 视频检测
+                # 检查视频是否正在播放
+                is_detecting = hasattr(current_page, 'cap') and current_page.cap and current_page.cap.isOpened()
+            
+            if is_detecting or manual_play:
+                # 正在检测或用户手动播放，确保音乐播放器处于播放状态
+                if not self.is_playing:
+                    self.is_playing = True
+                    self.play_pause_btn.setText("暂停")
+                
+                # 获取当前检测到的情绪
+                if hasattr(current_page, 'current_emotion') and current_page.current_emotion and current_page.current_emotion != "未检测":
+                    detected_emotion = current_page.current_emotion
+                    
+                    # 如果情绪有变化，切换音乐
+                    if detected_emotion != self.current_emotion:
+                        self.current_emotion = detected_emotion
+                        self.current_music_index[detected_emotion] = 0  # 重置音乐索引
+                        self.play_music(detected_emotion)
+                    else:
+                        # 情绪未变化，检查音乐是否播放完毕
+                        self.check_music_end()
+                else:
+                    # 没有检测到情绪，显示等待检测
+                    self.music_name_label.setText("等待检测...")
+            else:
+                # 没有检测，停止播放音乐
                 self.stop_music()
                 self.is_playing = False
                 self.play_pause_btn.setText("播放")
                 self.music_name_label.setText("未检测")
-            return
-        
-        # 检查页面是否正在检测
-        is_detecting = False
-        if current_index == 0:  # 摄像头检测
-            # 检查摄像头是否打开
-            is_detecting = hasattr(current_page, 'cap') and current_page.cap and current_page.cap.isOpened()
-        elif current_index == 1:  # 图片检测
-            # 图片检测是一次性的，只要有检测结果就认为正在检测
-            is_detecting = hasattr(current_page, 'current_emotion') and current_page.current_emotion and current_page.current_emotion != "未检测"
-        elif current_index == 3:  # 视频检测
-            # 检查视频是否正在播放
-            is_detecting = hasattr(current_page, 'cap') and current_page.cap and current_page.cap.isOpened()
-        
-        if is_detecting or manual_play:
-            # 正在检测或用户手动播放，确保音乐播放器处于播放状态
-            if not self.is_playing:
-                self.is_playing = True
-                self.play_pause_btn.setText("暂停")
-            
-            # 获取当前检测到的情绪
-            if hasattr(current_page, 'current_emotion') and current_page.current_emotion and current_page.current_emotion != "未检测":
-                detected_emotion = current_page.current_emotion
-                
-                # 如果情绪有变化，切换音乐
-                if detected_emotion != self.current_emotion:
-                    self.current_emotion = detected_emotion
-                    self.current_music_index[detected_emotion] = 0  # 重置音乐索引
-                    self.play_music(detected_emotion)
-                else:
-                    # 情绪未变化，检查音乐是否播放完毕
-                    self.check_music_end()
-            else:
-                # 没有检测到情绪，显示等待检测
-                self.music_name_label.setText("等待检测...")
-        else:
-            # 没有检测，停止播放音乐
-            self.stop_music()
-            self.is_playing = False
-            self.play_pause_btn.setText("播放")
-            self.music_name_label.setText("未检测")
+        except KeyboardInterrupt:
+            pass
     
     def play_music(self, emotion):
         """根据情绪播放音乐"""
@@ -667,7 +670,10 @@ class HomeWindow(QMainWindow):
     
     def update_time(self):
         """更新时间显示"""
-        self.time_label.setText(self.get_current_time())
+        try:
+            self.time_label.setText(self.get_current_time())
+        except KeyboardInterrupt:
+            pass
     
     def logout(self):
         """退出程序"""
