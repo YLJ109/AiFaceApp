@@ -538,7 +538,7 @@ class BatchImageDetectionPage(QWidget):
                 # 添加数据统计
                 from App.views.statistics import StatisticsPage
                 image_name = os.path.basename(img_path)
-                for x, y, w_box, h_box, emotion, confidence in results:
+                for x, y, w_box, h_box, emotion, confidence, intensity in results:
                     StatisticsPage.add_detection_data(
                         image_name=image_name,
                         emotion=emotion,
@@ -589,10 +589,10 @@ class BatchImageDetectionPage(QWidget):
                 face_pil = Image.fromarray(face_resized)
                 
                 # 模型预测
-                emotion, confidence = self.detection_core.predict_emotion(face_pil)
+                emotion, confidence, intensity = self.detection_core.predict_emotion(face_pil)
                 
-                results.append((x, y, w, h, emotion, confidence))
-                face_results.append({'emotion': emotion, 'confidence': confidence})
+                results.append((x, y, w, h, emotion, confidence, intensity))
+                face_results.append({'emotion': emotion, 'confidence': confidence, 'intensity': intensity})
             
             # 绘制四个角
             if SHOW_BOX:
@@ -603,3 +603,28 @@ class BatchImageDetectionPage(QWidget):
                 image = self.detection_core.draw_labels(image, faces, face_results)
         
         return results, image
+    
+    def stop_processing(self):
+        """停止批量处理并释放资源"""
+        # 清空处理结果
+        self.processed_images.clear()
+        
+        # 重置状态
+        self.status_label.setText("请选择图片和保存目录")
+        
+        # 重置预览网格
+        self.update_preview_grid()
+        
+        # 清理临时文件
+        import os
+        app_dir = os.path.dirname(os.path.dirname(__file__))
+        temp_dir = os.path.join(app_dir, 'temp')
+        if os.path.exists(temp_dir):
+            for file in os.listdir(temp_dir):
+                if file.startswith('processed_'):
+                    try:
+                        os.remove(os.path.join(temp_dir, file))
+                    except:
+                        pass
+        
+        print("👋 批量处理已停止")

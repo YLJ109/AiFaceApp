@@ -12,12 +12,8 @@ from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QProgres
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 
-# 直接导入而不是作为包
-config_path = os.path.join(app_dir, 'code', 'config.py')
-import importlib.util
-spec = importlib.util.spec_from_file_location("config", config_path)
-config = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(config)
+# 导入配置模块
+from App.code import config
 
 from App.views.page.login import LoginWindow
 from App.views.page.home import HomeWindow

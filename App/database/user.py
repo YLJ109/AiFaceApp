@@ -59,7 +59,7 @@ class UserDatabase:
                 'INSERT INTO users (username, password_hash, email, is_admin) VALUES (?, ?, ?, ?)',
                 (DEFAULT_ADMIN['username'], 
                  self._hash_password(DEFAULT_ADMIN['password']), 
-                 'admin@system.com',
+                 DEFAULT_ADMIN.get('email', 'admin@system.com'),
                  1)
             )
             print(f"✅ 创建默认管理员：{DEFAULT_ADMIN['username']}")

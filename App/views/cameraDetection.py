@@ -399,9 +399,24 @@ class CameraDetectionPage(QWidget):
     
     def start_camera(self):
         """启动摄像头"""
+        # 显示加载提示
+        if hasattr(self, 'status_label'):
+            self.status_label.setText("🔄 正在启动摄像头...")
+        
         try:
             if not self.detection_core.model:
-                print("❌ 模型未加载")
+                error_msg = "❌ 模型未加载"
+                print(error_msg)
+                if hasattr(self, 'status_label'):
+                    self.status_label.setText(error_msg)
+                # 显示错误提示
+                from PyQt6.QtWidgets import QMessageBox
+                msg = QMessageBox()
+                msg.setWindowTitle("错误")
+                msg.setText("模型未加载，请检查模型文件是否存在。")
+                msg.setIcon(QMessageBox.Icon.Critical)
+                msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msg.exec()
                 return
             
             # 动态获取最新配置
@@ -412,7 +427,18 @@ class CameraDetectionPage(QWidget):
             self.cap = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)
             
             if not self.cap.isOpened():
-                print(f"❌ 无法打开摄像头 (索引: {CAMERA_INDEX})")
+                error_msg = f"❌ 无法打开摄像头 (索引: {CAMERA_INDEX})"
+                print(error_msg)
+                if hasattr(self, 'status_label'):
+                    self.status_label.setText(error_msg)
+                # 显示错误提示
+                from PyQt6.QtWidgets import QMessageBox
+                msg = QMessageBox()
+                msg.setWindowTitle("错误")
+                msg.setText(f"无法打开摄像头 (索引: {CAMERA_INDEX})，请检查摄像头是否连接或被其他程序占用。")
+                msg.setIcon(QMessageBox.Icon.Critical)
+                msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msg.exec()
                 return
             
             # 设置摄像头参数
@@ -421,7 +447,22 @@ class CameraDetectionPage(QWidget):
             self.cap.set(cv2.CAP_PROP_FPS, FRAME_RATE)
             
             # 预加载人脸检测模型
-            self.detection_core.load_face_net()
+            try:
+                self.detection_core.load_face_net()
+            except Exception as e:
+                error_msg = f"❌ 加载人脸检测模型失败: {e}"
+                print(error_msg)
+                if hasattr(self, 'status_label'):
+                    self.status_label.setText(error_msg)
+                # 显示错误提示
+                from PyQt6.QtWidgets import QMessageBox
+                msg = QMessageBox()
+                msg.setWindowTitle("错误")
+                msg.setText(f"加载人脸检测模型失败: {e}")
+                msg.setIcon(QMessageBox.Icon.Critical)
+                msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+                msg.exec()
+                return
             
             # 连接定时器
             self.timer.timeout.connect(self.update_frame)
@@ -454,12 +495,26 @@ class CameraDetectionPage(QWidget):
             # 启用拍照按钮
             self.capture_btn.setEnabled(True)
             
-            print("✅ 摄像头已启动")
+            success_msg = "✅ 摄像头已启动"
+            print(success_msg)
+            if hasattr(self, 'status_label'):
+                self.status_label.setText(success_msg)
             
         except Exception as e:
-            print(f"❌ 启动失败：{e}")
+            error_msg = f"❌ 启动失败：{e}"
+            print(error_msg)
+            if hasattr(self, 'status_label'):
+                self.status_label.setText(error_msg)
             import traceback
             traceback.print_exc()
+            # 显示错误提示
+            from PyQt6.QtWidgets import QMessageBox
+            msg = QMessageBox()
+            msg.setWindowTitle("错误")
+            msg.setText(f"启动摄像头失败：{e}")
+            msg.setIcon(QMessageBox.Icon.Critical)
+            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg.exec()
     
     def update_frame(self):
         """更新视频帧 - 高性能版本"""
@@ -497,10 +552,14 @@ class CameraDetectionPage(QWidget):
             # 根据检测到的人脸数量初始化结果列表
             num_faces = min(len(faces), MAX_FACES)
             if len(self.face_results) != num_faces:
-                self.face_results = [{'emotion': 'neutral', 'confidence': 0.0} for _ in range(num_faces)]
+                self.face_results = [{'emotion': 'neutral', 'confidence': 0.0, 'intensity': '中等'} for _ in range(num_faces)]
             
             # 清理旧线程
             self.face_threads = [t for t in self.face_threads if t.isRunning()]
+            
+            # 收集所有人脸图片
+            face_images = []
+            face_indices = []
             
             for idx, (x, y, w_box, h_box) in enumerate(faces[:MAX_FACES]):
                 try:
@@ -511,16 +570,8 @@ class CameraDetectionPage(QWidget):
                     face_resized = cv2.resize(face_roi, (96, 96), interpolation=cv2.INTER_LINEAR)
                     face_pil = Image.fromarray(face_resized)
                     
-                    # 创建新的线程
-                    thread = PredictionThread(
-                        face_pil, self.detection_core.transform, self.detection_core.model, self.detection_core.device, idx
-                    )
-                    thread.result_ready.connect(lambda emotion, confidence, face_idx=idx: self.on_prediction_ready(emotion, confidence, face_idx))
-                    thread.finished.connect(lambda t=thread: self.on_thread_finished(t))
-                    thread.start()
-                    
-                    # 保存线程引用
-                    self.face_threads.append(thread)
+                    face_images.append(face_pil)
+                    face_indices.append(idx)
                     
                     # 为每个人脸创建独立的缓冲区
                     if len(self.face_emotion_buffers) <= idx:
@@ -530,7 +581,17 @@ class CameraDetectionPage(QWidget):
                     print(f"预测错误：{e}")
                     continue
             
-            # 所有线程启动后，设置一个定时器来重置is_processing
+            # 使用批处理预测
+            if face_images:
+                results = self.detection_core.batch_predict_emotion(face_images)
+                
+                # 处理预测结果
+                for i, (emotion, confidence, intensity) in enumerate(results):
+                    if i < len(face_indices):
+                        face_idx = face_indices[i]
+                        self.on_prediction_ready(emotion, confidence, intensity, face_idx)
+            
+            # 所有处理完成后，设置一个定时器来重置is_processing
             QTimer.singleShot(300, lambda: setattr(self, 'is_processing', False))
         
         # 显示处理（无论是否检测都显示）
@@ -567,6 +628,13 @@ class CameraDetectionPage(QWidget):
             self.frame_count = 0
             self.last_fps_time = current_time
             self.fps_label.setText(f"帧率：{self.current_fps:.1f} FPS")
+        
+        # 释放不再使用的资源
+        del frame
+        del rgb_image
+        del qt_image
+        del pixmap
+        del scaled_pixmap
     
     def on_thread_finished(self, thread):
         """线程完成回调 - 清理已完成的线程"""
@@ -574,7 +642,7 @@ class CameraDetectionPage(QWidget):
             self.face_threads.remove(thread)
         thread.deleteLater()
     
-    def on_prediction_ready(self, emotion, confidence, face_idx):
+    def on_prediction_ready(self, emotion, confidence, intensity, face_idx):
         """预测完成回调 - 支持多个人脸"""
         # 更新对应人脸的表情缓冲区
         if face_idx < len(self.face_emotion_buffers):
@@ -586,15 +654,16 @@ class CameraDetectionPage(QWidget):
         
         # 更新对应人脸的识别结果
         if face_idx < len(self.face_results):
-            self.face_results[face_idx] = {'emotion': smooth_emotion, 'confidence': confidence}
+            self.face_results[face_idx] = {'emotion': smooth_emotion, 'confidence': confidence, 'intensity': intensity}
         else:
             # 如果结果列表不够长，添加新的结果
-            self.face_results.append({'emotion': smooth_emotion, 'confidence': confidence})
+            self.face_results.append({'emotion': smooth_emotion, 'confidence': confidence, 'intensity': intensity})
         
         # 更新当前表情和置信度（用于拍照时的数据统计）
         if face_idx == 0:  # 只更新第一个人脸的信息
             self.current_emotion = smooth_emotion
             self.current_confidence = confidence
+            self.current_intensity = intensity
         
         # 更新表情统计
         self.emotion_stats[smooth_emotion] += 1
@@ -634,6 +703,14 @@ class CameraDetectionPage(QWidget):
             'surprise': '😲'
         }
         
+        # 表情强度图标映射
+        intensity_icons = {
+            '强烈': '🔥',
+            '明显': '💡',
+            '中等': '⚡',
+            '轻微': '💨'
+        }
+        
         # 更新每个人脸的信息
         for i, (face_widget, emotion_label, confidence_label, icon_label, number_label) in enumerate(self.face_info_labels):
             if i < len(self.face_results):
@@ -641,9 +718,10 @@ class CameraDetectionPage(QWidget):
                 result = self.face_results[i]
                 emotion = result.get('emotion', 'neutral')
                 confidence = result.get('confidence', 0)
+                intensity = result.get('intensity', '中等')
                 
                 emotion_text = EMOTION_CHINESE.get(emotion, emotion)
-                emotion_label.setText(emotion_text)
+                emotion_label.setText(f"{emotion_text} {intensity_icons.get(intensity, '')}")
                 confidence_label.setText(f"{confidence*100:.1f}%")
                 icon_label.setText(emotion_icons.get(emotion, '😐'))
                 
@@ -807,120 +885,137 @@ class CameraDetectionPage(QWidget):
     
     def stop_camera(self):
         """停止摄像头"""
-        if self.timer.isActive():
-            self.timer.stop()
+        # 显示加载提示
+        if hasattr(self, 'status_label'):
+            self.status_label.setText("🔄 正在停止摄像头...")
         
-        if self.cap and self.cap.isOpened():
-            self.cap.release()
-        
-        # 释放Caffe模型资源
-        if hasattr(self, 'face_net') and self.face_net is not None:
-            self.face_net = None
-        
-        if self.prediction_thread and self.prediction_thread.isRunning():
-            self.prediction_thread.quit()
-            self.prediction_thread.wait()
-        
-        # 清理所有人脸识别线程
-        for thread in self.face_threads:
-            if thread.isRunning():
-                thread.quit()
-                thread.wait()
-            thread.deleteLater()
-        self.face_threads.clear()
-        
-        self.video_label.clear()
-        self.video_label.setText("点击按钮启动摄像头")
-        
-        # 重置按钮
-        self.start_btn.setText("启动摄像头")
-        # 设置图标
-        start_icon_path = os.path.join(APP_DIR, 'icons', '启动摄像头.png')
-        if os.path.exists(start_icon_path):
-            start_icon = QIcon(start_icon_path)
-            self.start_btn.setIcon(start_icon)
-            self.start_btn.setIconSize(QSize(24, 24))
-        self.start_btn.setStyleSheet("""
-            QPushButton {
-                background: #2dd4bf;
-                color: white;
-                font-size: 16px;
-                padding: 15px 15px 15px 40px;
-                border-radius: 10px;
-                font-weight: bold;
-                border: none;
-                text-align: center;
-            }
-            QPushButton:hover {
-                background: #14b8a6;
-            }
-        """)
-        
-        # 禁用拍照按钮
-        self.capture_btn.setEnabled(False)
-        
-        # 重置数据
-        self.current_emotion = "未检测"
-        self.current_confidence = 0.0
-        self.emotion_stats = {emotion: 0 for emotion in EMOTION_CLASSES}
-        self.emotion_buffer.clear()
-        
-        # 重置多个人脸识别结果
-        self.face_results = []
-        self.face_emotion_buffers = []
-        
-        # 重置帧率
-        self.frame_count = 0
-        self.current_fps = 0
-        self.last_fps_time = 0
-        
-        # 重置显示
-        self.fps_label.setText("帧率：-- FPS")
-        
-        # 重置多个人脸信息显示为占位状态
-        for face_widget, emotion_label, confidence_label, icon_label, number_label in self.face_info_labels:
-            emotion_label.setText("未检测")
-            confidence_label.setText("--%")
-            icon_label.setText("")  # 清空表情图标
-            emotion_label.setStyleSheet("""
-                font-size: 15px;
-                font-weight: bold;
-                color: #64748b;
-            """)
-            number_label.setStyleSheet("""
-                QLabel {
-                    background: rgba(100, 116, 139, 0.2);
-                    color: #64748b;
-                    font-size: 14px;
+        try:
+            if self.timer.isActive():
+                self.timer.stop()
+            
+            if self.cap and self.cap.isOpened():
+                self.cap.release()
+            
+            # 释放Caffe模型资源
+            if hasattr(self, 'face_net') and self.face_net is not None:
+                self.face_net = None
+            
+            if self.prediction_thread and self.prediction_thread.isRunning():
+                self.prediction_thread.quit()
+                self.prediction_thread.wait()
+            
+            # 清理所有人脸识别线程
+            for thread in self.face_threads:
+                if thread.isRunning():
+                    thread.quit()
+                    thread.wait()
+                thread.deleteLater()
+            self.face_threads.clear()
+            
+            self.video_label.clear()
+            self.video_label.setText("点击按钮启动摄像头")
+            
+            # 重置按钮
+            self.start_btn.setText("启动摄像头")
+            # 设置图标
+            start_icon_path = os.path.join(APP_DIR, 'icons', '启动摄像头.png')
+            if os.path.exists(start_icon_path):
+                start_icon = QIcon(start_icon_path)
+                self.start_btn.setIcon(start_icon)
+                self.start_btn.setIconSize(QSize(24, 24))
+            self.start_btn.setStyleSheet("""
+                QPushButton {
+                    background: #2dd4bf;
+                    color: white;
+                    font-size: 16px;
+                    padding: 15px 15px 15px 40px;
+                    border-radius: 10px;
                     font-weight: bold;
-                    border-radius: 15px;
-                    min-width: 30px;
-                    max-width: 30px;
-                    min-height: 30px;
-                    max-height: 30px;
-                }
-            """)
-            # 恢复默认占位样式
-            face_widget.setStyleSheet("""
-                QFrame {
-                    background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.6));
-                    border-radius: 12px;
                     border: none;
+                    text-align: center;
                 }
-                QFrame:hover {
-                    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.7));
+                QPushButton:hover {
+                    background: #14b8a6;
                 }
             """)
-        
-        # 重置图表
-        if hasattr(self, 'emotion_curve'):
-            self.emotion_curve.setData(
-                x=list(range(len(EMOTION_CLASSES))),
-                y=[0]*len(EMOTION_CLASSES)
-            )
-            self.emotion_graph.setYRange(0, 10, padding=0.1)
-        
-        print("👋 摄像头已停止")
+            
+            # 禁用拍照按钮
+            self.capture_btn.setEnabled(False)
+            
+            # 重置数据
+            self.current_emotion = "未检测"
+            self.current_confidence = 0.0
+            self.current_intensity = "中等"
+            self.emotion_stats = {emotion: 0 for emotion in EMOTION_CLASSES}
+            self.emotion_buffer.clear()
+            
+            # 重置多个人脸识别结果
+            self.face_results = []
+            self.face_emotion_buffers = []
+            
+            # 重置帧率
+            self.frame_count = 0
+            self.current_fps = 0
+            self.last_fps_time = 0
+            
+            # 重置显示
+            self.fps_label.setText("帧率：-- FPS")
+            
+            # 重置多个人脸信息显示为占位状态
+            for face_widget, emotion_label, confidence_label, icon_label, number_label in self.face_info_labels:
+                emotion_label.setText("未检测")
+                confidence_label.setText("--%")
+                icon_label.setText("")  # 清空表情图标
+                emotion_label.setStyleSheet("""
+                    font-size: 15px;
+                    font-weight: bold;
+                    color: #64748b;
+                """)
+                number_label.setStyleSheet("""
+                    QLabel {
+                        background: rgba(100, 116, 139, 0.2);
+                        color: #64748b;
+                        font-size: 14px;
+                        font-weight: bold;
+                        border-radius: 15px;
+                        min-width: 30px;
+                        max-width: 30px;
+                        min-height: 30px;
+                        max-height: 30px;
+                    }
+                """)
+                # 恢复默认占位样式
+                face_widget.setStyleSheet("""
+                    QFrame {
+                        background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.6));
+                        border-radius: 12px;
+                        border: none;
+                    }
+                    QFrame:hover {
+                        background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.7));
+                    }
+                """)
+            
+            # 重置图表
+            if hasattr(self, 'emotion_curve'):
+                self.emotion_curve.setData(
+                    x=list(range(len(EMOTION_CLASSES))),
+                    y=[0]*len(EMOTION_CLASSES)
+                )
+                self.emotion_graph.setYRange(0, 10, padding=0.1)
+            
+            success_msg = "👋 摄像头已停止"
+            print(success_msg)
+            if hasattr(self, 'status_label'):
+                self.status_label.setText(success_msg)
+                
+        except Exception as e:
+            error_msg = f"❌ 停止失败：{e}"
+            print(error_msg)
+            if hasattr(self, 'status_label'):
+                self.status_label.setText(error_msg)
+            import traceback
+            traceback.print_exc()
     
     def on_camera_settings_changed(self):
         """摄像头设置变更处理"""

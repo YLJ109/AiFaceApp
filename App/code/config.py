@@ -59,12 +59,21 @@ MAX_FACES = 5
 
 # 数据库配置
 DB_PATH = os.path.join(APP_DIR, 'database', 'app.db')
+DB_TYPE = 'sqlite'  # 数据库类型：sqlite, mysql, postgresql等
 
-# 默认管理员账户
+# 默认管理员账户（首次启动时创建）
 DEFAULT_ADMIN = {
     'username': 'root',
-    'password': '123456'
+    'password': '123456',
+    'email': 'admin@system.com'
 }
+
+# MySQL/PostgreSQL 数据库配置（如果使用）
+DB_HOST = 'localhost'
+DB_PORT = 3306
+DB_NAME = 'aifaceapp'
+DB_USER = 'root'
+DB_PASSWORD = 'password'
 
 # 日志配置
 LOG_DIR = os.path.join(APP_DIR, 'logs')
@@ -100,7 +109,14 @@ def save_config():
         'APP_WIDTH': APP_WIDTH,
         'APP_HEIGHT': APP_HEIGHT,
         'ICON_PATH': 'icons/logo.png',
-        'USE_CUDA': USE_CUDA
+        'USE_CUDA': USE_CUDA,
+        'DEFAULT_ADMIN': DEFAULT_ADMIN,
+        'DB_TYPE': DB_TYPE,
+        'DB_HOST': DB_HOST,
+        'DB_PORT': DB_PORT,
+        'DB_NAME': DB_NAME,
+        'DB_USER': DB_USER,
+        'DB_PASSWORD': DB_PASSWORD
     }
     
     try:
@@ -124,6 +140,8 @@ def load_config():
     global APP_WIDTH, APP_HEIGHT
     global ICON_PATH
     global USE_CUDA
+    global DEFAULT_ADMIN
+    global DB_TYPE, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
     
     try:
         if os.path.exists(CONFIG_FILE):
@@ -154,6 +172,20 @@ def load_config():
                 ICON_PATH = os.path.join(APP_DIR, config_data['ICON_PATH'])
             if 'USE_CUDA' in config_data:
                 USE_CUDA = config_data['USE_CUDA']
+            if 'DEFAULT_ADMIN' in config_data:
+                DEFAULT_ADMIN = config_data['DEFAULT_ADMIN']
+            if 'DB_TYPE' in config_data:
+                DB_TYPE = config_data['DB_TYPE']
+            if 'DB_HOST' in config_data:
+                DB_HOST = config_data['DB_HOST']
+            if 'DB_PORT' in config_data:
+                DB_PORT = config_data['DB_PORT']
+            if 'DB_NAME' in config_data:
+                DB_NAME = config_data['DB_NAME']
+            if 'DB_USER' in config_data:
+                DB_USER = config_data['DB_USER']
+            if 'DB_PASSWORD' in config_data:
+                DB_PASSWORD = config_data['DB_PASSWORD']
             
             print(f"✅ 配置已从 {CONFIG_FILE} 加载")
             return True

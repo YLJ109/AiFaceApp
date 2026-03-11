@@ -827,3 +827,97 @@ class VideoDetectionPage(QWidget):
             print(f"❌ 拍照失败：{e}")
             import traceback
             traceback.print_exc()
+    
+    def stop_video(self):
+        """停止视频播放并释放资源"""
+        if self.timer.isActive():
+            self.timer.stop()
+        
+        if self.cap and self.cap.isOpened():
+            self.cap.release()
+        
+        # 清理所有线程
+        for thread in self.face_threads:
+            if thread.isRunning():
+                thread.quit()
+                thread.wait()
+            thread.deleteLater()
+        self.face_threads.clear()
+        
+        # 清空显示
+        self.video_label.clear()
+        self.video_label.setText("选择视频文件")
+        
+        # 重置按钮
+        self.play_btn.setText("播放")
+        # 设置图标
+        play_icon_path = os.path.join(APP_DIR, 'icons', '播放.png')
+        if os.path.exists(play_icon_path):
+            play_icon = QIcon(play_icon_path)
+            self.play_btn.setIcon(play_icon)
+            self.play_btn.setIconSize(QSize(24, 24))
+        self.play_btn.setEnabled(False)
+        
+        # 禁用其他按钮
+        self.capture_btn.setEnabled(False)
+        
+        # 重置进度条
+        self.progress_slider.setValue(0)
+        self.progress_slider.setEnabled(False)
+        
+        # 重置数据
+        self.is_playing = False
+        self.current_emotion = "未检测"
+        self.emotion_stats = {emotion: 0 for emotion in EMOTION_CLASSES}
+        self.face_results = []
+        self.face_emotion_buffers = []
+        
+        # 重置帧率
+        self.frame_count = 0
+        self.current_fps = 0
+        self.last_fps_time = 0
+        self.fps_label.setText("帧率：-- FPS")
+        
+        # 重置多个人脸信息显示
+        for face_widget, emotion_label, confidence_label, icon_label, number_label in self.face_info_labels:
+            emotion_label.setText("未检测")
+            confidence_label.setText("--%")
+            icon_label.setText("")
+            emotion_label.setStyleSheet("""
+                font-size: 15px;
+                font-weight: bold;
+                color: #64748b;
+            """)
+            number_label.setStyleSheet("""
+                QLabel {
+                    background: rgba(100, 116, 139, 0.2);
+                    color: #64748b;
+                    font-size: 14px;
+                    font-weight: bold;
+                    border-radius: 15px;
+                    min-width: 30px;
+                    max-width: 30px;
+                    min-height: 30px;
+                    max-height: 30px;
+                }
+            """)
+            face_widget.setStyleSheet("""
+                QFrame {
+                    background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.6));
+                    border-radius: 12px;
+                    border: none;
+                }
+                QFrame:hover {
+                    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.7));
+                }
+            """)
+        
+        # 重置图表
+        if hasattr(self, 'emotion_curve'):
+            self.emotion_curve.setData(
+                x=list(range(len(EMOTION_CLASSES))),
+                y=[0]*len(EMOTION_CLASSES)
+            )
+            self.emotion_graph.setYRange(0, 10, padding=0.1)
+        
+        print("👋 视频已停止")

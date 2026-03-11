@@ -4,12 +4,35 @@
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
                              QStackedWidget, QPushButton, QLabel, QFrame)
 from PyQt6.QtCore import QSize
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QKeyEvent, QIcon, QPixmap
 import os
 import random
 import pygame
 from App.code.config import APP_NAME, APP_VERSION, ICON_PATH, APP_DIR, EMOTION_CHINESE, EMOTION_CLASSES
+
+class MusicInitThread(QThread):
+    """音乐初始化线程"""
+    init_finished = pyqtSignal()
+    
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+    
+    def run(self):
+        """运行初始化"""
+        # 初始化音乐目录和文件列表
+        for emotion in EMOTION_CLASSES:
+            chinese_emotion = EMOTION_CHINESE.get(emotion, emotion)
+            self.parent.music_dirs[emotion] = os.path.join(self.parent.default_music_dir, chinese_emotion)
+            # 获取音乐文件列表
+            try:
+                music_files = [f for f in os.listdir(self.parent.music_dirs[emotion]) if f.endswith(('.mp3', '.wav', '.ogg', '.flac'))]
+            except:
+                music_files = []
+            self.parent.music_files[emotion] = music_files
+            self.parent.current_music_index[emotion] = 0
+        self.init_finished.emit()
 
 class HomeWindow(QMainWindow):
     """主窗口"""
@@ -32,20 +55,23 @@ class HomeWindow(QMainWindow):
         self.current_music_index = {}  # 存储每个情绪的当前音乐索引
         self.is_muted = False  # 静音状态
         
-        # 初始化音乐目录和文件列表
-        for emotion in EMOTION_CLASSES:
-            chinese_emotion = EMOTION_CHINESE.get(emotion, emotion)
-            self.music_dirs[emotion] = os.path.join(self.default_music_dir, chinese_emotion)
-            # 获取音乐文件列表
-            music_files = [f for f in os.listdir(self.music_dirs[emotion]) if f.endswith(('.mp3', '.wav', '.ogg', '.flac'))]
-            self.music_files[emotion] = music_files
-            self.current_music_index[emotion] = 0
-        
+        # 初始化UI
         self.init_ui()
         
         # 设置窗口图标
         if os.path.exists(ICON_PATH):
             self.setWindowIcon(QIcon(ICON_PATH))
+        
+        # 启动音乐初始化线程
+        music_thread = MusicInitThread(self)
+        music_thread.init_finished.connect(self.on_music_init_finished)
+        music_thread.start()
+    
+    def on_music_init_finished(self):
+        """音乐初始化完成后的处理"""
+        print("🎵 音乐目录初始化完成")
+        # 初始化完成后，可以开始播放音乐
+        QTimer.singleShot(1000, self.check_emotion_and_play_music)
     
     def init_ui(self):
         """初始化 UI"""
@@ -441,6 +467,12 @@ class HomeWindow(QMainWindow):
     
     def switch_page(self, page_name):
         """切换页面"""
+        # 显示加载指示器
+        self.show_loading_indicator()
+        
+        # 停止其他页面的资源
+        self.stop_other_resources(page_name)
+        
         page_map = {
             'camera': 0,
             'image': 1,
@@ -471,6 +503,58 @@ class HomeWindow(QMainWindow):
             # 更新导航按钮选中状态
             for page, btn in self.nav_button_map.items():
                 btn.setChecked(page == page_name)
+            
+            # 延迟隐藏加载指示器，确保页面有足够时间加载
+            QTimer.singleShot(300, self.hide_loading_indicator)
+    
+    def show_loading_indicator(self):
+        """显示加载指示器"""
+        # 检查是否已存在加载指示器
+        if not hasattr(self, 'loading_indicator'):
+            from PyQt6.QtWidgets import QLabel, QVBoxLayout, QWidget
+            from PyQt6.QtCore import Qt
+            
+            # 创建加载指示器
+            self.loading_indicator = QWidget(self)
+            self.loading_indicator.setGeometry(0, 0, self.width(), self.height())
+            self.loading_indicator.setStyleSheet("background: rgba(15, 23, 42, 0.8);")
+            
+            layout = QVBoxLayout()
+            layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            
+            loading_label = QLabel("加载中...")
+            loading_label.setFont(QFont("Microsoft YaHei", 14))
+            loading_label.setStyleSheet("color: #2dd4bf;")
+            
+            layout.addWidget(loading_label)
+            self.loading_indicator.setLayout(layout)
+        
+        self.loading_indicator.show()
+    
+    def hide_loading_indicator(self):
+        """隐藏加载指示器"""
+        if hasattr(self, 'loading_indicator'):
+            self.loading_indicator.hide()
+    
+    def stop_other_resources(self, current_page):
+        """停止其他页面的资源"""
+        # 停止摄像头检测
+        if current_page != 'camera' and 'camera' in self.pages:
+            camera_page = self.pages['camera']
+            if hasattr(camera_page, 'stop_camera'):
+                camera_page.stop_camera()
+        
+        # 停止视频检测
+        if current_page != 'video' and 'video' in self.pages:
+            video_page = self.pages['video']
+            if hasattr(video_page, 'stop_video'):
+                video_page.stop_video()
+        
+        # 停止批量图片检测
+        if current_page != 'batch_image' and 'batch_image' in self.pages:
+            batch_image_page = self.pages['batch_image']
+            if hasattr(batch_image_page, 'stop_processing'):
+                batch_image_page.stop_processing()
     
     def keyPressEvent(self, event: QKeyEvent):
         """键盘事件处理"""
@@ -533,7 +617,31 @@ class HomeWindow(QMainWindow):
                     self.play_pause_btn.setText("暂停")
                 
                 # 获取当前检测到的情绪
-                if hasattr(current_page, 'current_emotion') and current_page.current_emotion and current_page.current_emotion != "未检测":
+                if hasattr(current_page, 'face_results') and current_page.face_results:
+                    # 统计所有人脸的表情
+                    emotion_counts = {}
+                    for result in current_page.face_results:
+                        emotion = result.get('emotion', 'neutral')
+                        if emotion != "未检测":
+                            emotion_counts[emotion] = emotion_counts.get(emotion, 0) + 1
+                    
+                    # 选择出现频率最高的表情
+                    if emotion_counts:
+                        detected_emotion = max(emotion_counts, key=emotion_counts.get)
+                        
+                        # 如果情绪有变化，切换音乐
+                        if detected_emotion != self.current_emotion:
+                            self.current_emotion = detected_emotion
+                            self.current_music_index[detected_emotion] = 0  # 重置音乐索引
+                            self.play_music(detected_emotion)
+                        else:
+                            # 情绪未变化，检查音乐是否播放完毕
+                            self.check_music_end()
+                    else:
+                        # 没有检测到有效表情，显示等待检测
+                        self.music_name_label.setText("等待检测...")
+                elif hasattr(current_page, 'current_emotion') and current_page.current_emotion and current_page.current_emotion != "未检测":
+                    # 兼容单表情检测
                     detected_emotion = current_page.current_emotion
                     
                     # 如果情绪有变化，切换音乐
@@ -545,14 +653,11 @@ class HomeWindow(QMainWindow):
                         # 情绪未变化，检查音乐是否播放完毕
                         self.check_music_end()
                 else:
-                    # 没有检测到情绪，显示等待检测
-                    self.music_name_label.setText("等待检测...")
-            else:
-                # 没有检测，停止播放音乐
-                self.stop_music()
-                self.is_playing = False
-                self.play_pause_btn.setText("播放")
-                self.music_name_label.setText("未检测")
+                    # 没有检测，停止播放音乐
+                    self.stop_music()
+                    self.is_playing = False
+                    self.play_pause_btn.setText("播放")
+                    self.music_name_label.setText("未检测")
         except KeyboardInterrupt:
             pass
     
@@ -562,6 +667,11 @@ class HomeWindow(QMainWindow):
             # 检查emotion参数
             if not emotion:
                 print("⚠️ 情绪未检测到")
+                return
+            
+            # 检查音乐目录是否初始化完成
+            if not self.music_dirs or not self.music_files:
+                print("⚠️ 音乐目录初始化中")
                 return
             
             # 检查音乐目录是否存在

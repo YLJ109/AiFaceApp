@@ -56,6 +56,15 @@ class DetectionCore:
             self.model.load_state_dict(checkpoint['model_state_dict'])
             self.model.eval()
             
+            # 模型量化，提高推理速度
+            if self.device.type == 'cpu':
+                self.model = torch.quantization.quantize_dynamic(
+                    self.model,
+                    {torch.nn.Linear},  # 只量化线性层
+                    dtype=torch.qint8
+                )
+                print("✅ 模型已量化")
+            
             self.transform = transforms.Compose([
                 transforms.Grayscale(num_output_channels=1),
                 transforms.Resize((IMAGE_SIZE, IMAGE_SIZE)),
@@ -129,7 +138,7 @@ class DetectionCore:
         """预测表情"""
         if not self.model:
             if not self.load_model():
-                return 'neutral', 0.0
+                return 'neutral', 0.0, '中等'
         
         try:
             face_tensor = self.transform(face_image).unsqueeze(0).to(self.device)
@@ -140,11 +149,52 @@ class DetectionCore:
                 conf, pred = torch.max(probs, 1)
                 emotion = EMOTION_CLASSES[pred.item()]
                 confidence = conf.item()
+                
+                # 分析表情强度
+                intensity = self.analyze_emotion_intensity(confidence)
             
-            return emotion, confidence
+            return emotion, confidence, intensity
         except Exception as e:
             print(f"预测错误：{e}")
-            return 'neutral', 0.0
+            return 'neutral', 0.0, '中等'
+    
+    def batch_predict_emotion(self, face_images):
+        """批量预测表情"""
+        if not self.model:
+            if not self.load_model():
+                return [('neutral', 0.0, '中等') for _ in face_images]
+        
+        try:
+            # 批量处理人脸图片
+            face_tensors = torch.stack([self.transform(img) for img in face_images]).to(self.device)
+            
+            with torch.no_grad():
+                outputs = self.model(face_tensors)
+                probs = torch.nn.functional.softmax(outputs, dim=1)
+                confs, preds = torch.max(probs, 1)
+                
+                results = []
+                for i in range(len(face_images)):
+                    emotion = EMOTION_CLASSES[preds[i].item()]
+                    confidence = confs[i].item()
+                    intensity = self.analyze_emotion_intensity(confidence)
+                    results.append((emotion, confidence, intensity))
+            
+            return results
+        except Exception as e:
+            print(f"批量预测错误：{e}")
+            return [('neutral', 0.0, '中等') for _ in face_images]
+    
+    def analyze_emotion_intensity(self, confidence):
+        """分析表情强度"""
+        if confidence >= 0.8:
+            return '强烈'
+        elif confidence >= 0.6:
+            return '明显'
+        elif confidence >= 0.4:
+            return '中等'
+        else:
+            return '轻微'
     
     def draw_four_corners(self, image, faces, face_results=None):
         """绘制四个角"""

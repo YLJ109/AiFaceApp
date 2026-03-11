@@ -325,10 +325,10 @@ class ImageDetectionPage(QWidget):
                     face_pil = Image.fromarray(face_resized)
                     
                     # 模型预测
-                    emotion, confidence = self.detection_core.predict_emotion(face_pil)
+                    emotion, confidence, intensity = self.detection_core.predict_emotion(face_pil)
                     
-                    results.append((x, y, w, h, emotion, confidence))
-                    face_results.append({'emotion': emotion, 'confidence': confidence})
+                    results.append((x, y, w, h, emotion, confidence, intensity))
+                    face_results.append({'emotion': emotion, 'confidence': confidence, 'intensity': intensity})
                 
                 # 先处理所有绘制
                 result_texts = []
@@ -342,7 +342,7 @@ class ImageDetectionPage(QWidget):
                     image = self.detection_core.draw_labels(image, faces, face_results)
                 
                 # 生成结果文本
-                for idx, (x, y, w, h, emotion, confidence) in enumerate(results):
+                for idx, (x, y, w, h, emotion, confidence, intensity) in enumerate(results):
                     result_texts.append(f"{idx+1}: {EMOTION_CHINESE.get(emotion, emotion)} (准确率：{confidence*100:.1f}%)")
                 
                 # 更新显示
@@ -359,11 +359,19 @@ class ImageDetectionPage(QWidget):
                     'neutral': '😐'
                 }
                 
+                # 表情强度图标映射
+                intensity_icons = {
+                    '强烈': '🔥',
+                    '明显': '💡',
+                    '中等': '⚡',
+                    '轻微': '💨'
+                }
+                
                 # 更新左侧人脸信息卡片
                 for i, (face_widget, emotion_label, confidence_label, icon_label, number_label) in enumerate(self.face_info_labels):
                     if i < len(results):
-                        x, y, w, h, emotion, confidence = results[i]
-                        emotion_label.setText(EMOTION_CHINESE.get(emotion, emotion))
+                        x, y, w, h, emotion, confidence, intensity = results[i]
+                        emotion_label.setText(f"{EMOTION_CHINESE.get(emotion, emotion)} {intensity_icons.get(intensity, '')}")
                         confidence_label.setText(f"{confidence*100:.1f}%")
                         icon_label.setText(emotion_icons.get(emotion, ''))
                         # 显示卡片
